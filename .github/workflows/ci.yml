@@ -19,6 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Fair Tests
+      - name: Test macOS
         run: xcrun swift test
  
+      - name: Test iOS
+        run: xcodebuild test -configuration Debug -scheme "Busq" -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 13"
+
