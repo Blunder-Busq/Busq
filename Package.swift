@@ -132,14 +132,12 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
-                //.headerSearchPath("src"),
-                //.headerSearchPath("libcnary/include"),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("HAVE_GETIFADDRS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .define("MBEDTLS_PSA_CRYPTO_C"),
+                .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
             ]
         ),
         .target(
@@ -207,7 +205,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .define("MBEDTLS_MD_C"),
+                //.define("MBEDTLS_MD_C"),
                 //.define("STRIP_DEBUG_CODE"),
                 //.headerSearchPath("common"),
                 .headerSearchPath("."),

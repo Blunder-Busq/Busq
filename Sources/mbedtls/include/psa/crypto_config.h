@@ -89,27 +89,53 @@
 #define PSA_WANT_ALG_TLS12_PSK_TO_MS            1
 #define PSA_WANT_ALG_XTS                        1
 
+#ifndef PSA_WANT_ECC_BRAINPOOL_P_R1_256
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_256         1
+#endif
+#ifndef PSA_WANT_ECC_BRAINPOOL_P_R1_384
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_384         1
+#endif
+#ifndef PSA_WANT_ECC_BRAINPOOL_P_R1_512
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_512         1
+#endif
+#ifndef PSA_WANT_ECC_MONTGOMERY_255
 #define PSA_WANT_ECC_MONTGOMERY_255             1
+#endif
+#ifndef PSA_WANT_ECC_MONTGOMERY_448
 #define PSA_WANT_ECC_MONTGOMERY_448             1
+#endif
+#ifndef PSA_WANT_ECC_SECP_K1_192
 #define PSA_WANT_ECC_SECP_K1_192                1
+#endif
 /*
  * SECP224K1 is buggy via the PSA API in Mbed TLS
  * (https://github.com/ARMmbed/mbedtls/issues/3541). Thus, do not enable it by
  * default.
  */
 //#define PSA_WANT_ECC_SECP_K1_224                1
+#ifndef PSA_WANT_ECC_SECP_K1_256
 #define PSA_WANT_ECC_SECP_K1_256                1
+#endif
+#ifndef PSA_WANT_ECC_SECP_R1_192
 #define PSA_WANT_ECC_SECP_R1_192                1
+#endif
+#ifndef PSA_WANT_ECC_SECP_R1_224
 #define PSA_WANT_ECC_SECP_R1_224                1
+#endif
+#ifndef PSA_WANT_ECC_SECP_R1_256
 #define PSA_WANT_ECC_SECP_R1_256                1
+#endif
+#ifndef PSA_WANT_ECC_SECP_R1_256
 #define PSA_WANT_ECC_SECP_R1_384                1
+#endif
+#ifndef PSA_WANT_ECC_SECP_R1_521
 #define PSA_WANT_ECC_SECP_R1_521                1
+#endif
 
 #define PSA_WANT_KEY_TYPE_DERIVE                1
+#ifndef PSA_WANT_KEY_TYPE_HMAC
 #define PSA_WANT_KEY_TYPE_HMAC                  1
+#endif
 #define PSA_WANT_KEY_TYPE_AES                   1
 #define PSA_WANT_KEY_TYPE_ARIA                  1
 #define PSA_WANT_KEY_TYPE_CAMELLIA              1

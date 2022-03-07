@@ -3,7 +3,7 @@ module libimobiledevice {
     header "libimobiledevice/libimobiledevice.h"
 
     header "libimobiledevice/afc.h"
-    //header "libimobiledevice/asprintf.h"
+    header "libimobiledevice/asprintf.h"
     header "libimobiledevice/companion_proxy.h"
     header "libimobiledevice/debugserver.h"
     header "libimobiledevice/diagnostics_relay.h"

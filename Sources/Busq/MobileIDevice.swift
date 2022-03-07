@@ -57,12 +57,14 @@ public struct MobileDevice {
     private init() {
     }
 
+    /// The level of debugging.
     public static var debug: Bool = false {
         didSet {
             idevice_set_debug_level(debug ? 1 : 0)
         }
     }
 
+    /// Register a callback function that will be called when device add/remove events occur.
     public static func eventSubscribe(callback: @escaping (Event) throws -> Void) throws -> Disposable {
         let p = Unmanaged.passRetained(Wrapper(value: callback))
 
@@ -90,11 +92,13 @@ public struct MobileDevice {
         }
     }
 
+    /// Release the event callback function that has been registered with idevice_event_subscribe().
     public static func eventUnsubscribe() -> MobileDeviceError? {
         let error = idevice_event_unsubscribe()
         return MobileDeviceError(rawValue: error.rawValue)
     }
 
+    /// Get a list of UDIDs of currently available devices (USBMUX devices only).
     public static func getDeviceList() throws -> [String] {
         var devices: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
         var count: Int32 = 0
@@ -111,6 +115,7 @@ public struct MobileDevice {
         return idList
     }
 
+    /// Get a list of currently available devices
     public static func getDeviceListExtended() throws -> [DeviceInfo] {
         var pdevices: UnsafeMutablePointer<idevice_info_t?>? = nil
         var count: Int32 = 0
@@ -247,6 +252,7 @@ public struct DeviceConnection {
         self.rawValue = nil
     }
 
+    /// Send data to a device via the given connection.
     public func send(data: Data) throws -> UInt32 {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -264,6 +270,7 @@ public struct DeviceConnection {
         }
     }
 
+    /// Receive data from a device via the given connection. This function will return after the given timeout even if no data has been received.
     public func receive(timeout: UInt32? = nil, length: UInt32) throws -> (Data, UInt32) {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -287,6 +294,7 @@ public struct DeviceConnection {
         return (Data(bytes: pdata, count: Int(receivedBytes)), receivedBytes)
     }
 
+    /// Enables or disables SSL for the given connection.
     public func setSSL(enable: Bool) throws {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -298,6 +306,7 @@ public struct DeviceConnection {
         }
     }
 
+    /// Get the underlying file descriptor for a connection
     public func getFileDescriptor() throws -> Int32 {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -311,6 +320,7 @@ public struct DeviceConnection {
         return fd
     }
 
+    /// Disconnect from the device and clean up the connection structure.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -357,6 +367,7 @@ public enum MobileDeviceError: Int32, Error {
 public struct Device {
     var rawValue: idevice_t? = nil
 
+    /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available (USBMUX devices only).
     public init(udid: String) throws {
         let rawError = idevice_new(&rawValue, udid)
         if let error = MobileDeviceError(rawValue: rawError.rawValue) {
@@ -364,6 +375,7 @@ public struct Device {
         }
     }
 
+    /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available, with the given lookup options.
     public init(udid: String, options: DeviceLookupOptions) throws {
         let rawError = idevice_new_with_options(&rawValue, udid, .init(options.rawValue))
         if let error = MobileDeviceError(rawValue: rawError.rawValue) {
@@ -371,6 +383,7 @@ public struct Device {
         }
     }
 
+    /// Set up a connection to the given device.
     public func connect(port: UInt) throws -> DeviceConnection {
         guard let device = self.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -388,6 +401,7 @@ public struct Device {
         return conn
     }
 
+    /// Gets the handle or (usbmux device id) of the device.
     public func getHandle() throws -> UInt32 {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -402,6 +416,7 @@ public struct Device {
         return handle
     }
 
+    /// Gets the unique id for the device.
     public func getUDID() throws -> String {
         guard let rawValue = self.rawValue else {
             throw MobileDeviceError.disconnected
@@ -419,6 +434,7 @@ public struct Device {
         return String(cString: udid)
     }
 
+    /// Cleans up an idevice structure, then frees the structure itself.
     public mutating func free() {
         if let rawValue = self.rawValue {
             idevice_free(rawValue)
@@ -667,10 +683,12 @@ public enum InstallationProxyClientOptionsKey {
 public struct InstallationProxyOptions {
     var rawValue: plist_t?
 
+    /// Creates a new `client_options` plist.
     init() {
         self.rawValue = instproxy_client_options_new()
     }
 
+    /// Set item identified by key in a `#PLIST_DICT` node. The previous item identified by key will be freed using `#plist_free`. If there is no item for the given key a new item will be inserted.
     public func add(arguments: InstallationProxyClientOptionsKey...) {
         guard let rawValue = self.rawValue else {
             return
@@ -690,6 +708,7 @@ public struct InstallationProxyOptions {
         }
     }
 
+    /// Create a new root plist type `#PLIST_ARRAY`
     public func setReturnAttributes(arguments: String...) {
         guard let rawValue = self.rawValue else {
             return
@@ -702,6 +721,7 @@ public struct InstallationProxyOptions {
         plist_dict_set_item(rawValue, "ReturnAttributes", returnAttributes)
     }
 
+    /// Frees `client_options` plist.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -712,6 +732,7 @@ public struct InstallationProxyOptions {
 }
 
 public struct InstallationProxy {
+    /// Starts a new `installation_proxy` service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, action: (InstallationProxy) throws -> T) throws -> T {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -731,6 +752,7 @@ public struct InstallationProxy {
         return try action(InstallationProxy(rawValue: client))
     }
 
+    /// Gets the name from a command dictionary.
     public static func commandGetName(command: Plist) -> String? {
         var pname: UnsafeMutablePointer<Int8>? = nil
         instproxy_command_get_name(command.rawValue, &pname)
@@ -742,6 +764,7 @@ public struct InstallationProxy {
         return String(cString: name)
     }
 
+    /// Gets the name from a command dictionary.
     public static func statusGetName(status: Plist) -> String? {
         var pname: UnsafeMutablePointer<Int8>? = nil
         instproxy_command_get_name(status.rawValue, &pname)
@@ -753,6 +776,7 @@ public struct InstallationProxy {
         return String(cString: name)
     }
 
+    /// Gets error name, code and description from a response if available.
     public static func statusGetError(status: Plist) -> InstallationProxyStatusError? {
         var pname: UnsafeMutablePointer<Int8>? = nil
         var pdescription: UnsafeMutablePointer<Int8>? = nil
@@ -781,6 +805,7 @@ public struct InstallationProxy {
 //        // TODO
 //    }
 
+    /// Gets progress in percentage from a status if available.
     public static func statusGetPercentComplete(status: Plist) -> Int32 {
         var percent: Int32 = 0
         instproxy_status_get_percent_complete(status.rawValue, &percent)
@@ -794,6 +819,7 @@ public struct InstallationProxy {
         self.rawValue = rawValue
     }
 
+    /// Connects to the `installation_proxy` service on the specified device.
     init(device: Device, service: LockdownService) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -814,6 +840,7 @@ public struct InstallationProxy {
         self.rawValue = client
     }
 
+    /// List installed applications. This function runs synchronously.
     public func browse(options: Plist) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -831,6 +858,7 @@ public struct InstallationProxy {
         return Plist(rawValue: result)
     }
 
+    /// List pages of installed applications in a callback.
     public func browse(options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -857,6 +885,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Lookup information about specific applications from the device.
     public func lookup(appIDs: [String]?, options: Plist) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -864,7 +893,7 @@ public struct InstallationProxy {
 
         let buffer: UnsafeMutableBufferPointer<UnsafePointer<Int8>?>?
         defer { buffer?.deallocate() }
-        var p = appIDs?.map { $0.utf8CString }
+        //var p = appIDs?.map { $0.utf8CString }
         if let appIDs = appIDs {
             let pbuffer = UnsafeMutableBufferPointer<UnsafePointer<Int8>?>.allocate(capacity: appIDs.count + 1)
             for (i, id) in appIDs.enumerated() {
@@ -890,6 +919,7 @@ public struct InstallationProxy {
         return Plist(rawValue: result)
     }
 
+    /// Install an application on the device.
     public func install(pkgPath: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -915,6 +945,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Upgrade an application on the device. This function is nearly the same as `install`; the difference is that the installation progress on the device is faster if the application is already installed.
     public func upgrade(pkgPath: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -940,6 +971,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Uninstall an application from the device.
     public func uninstall(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -965,6 +997,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// List archived applications. This function runs synchronously.
     public func lookupArchives(options: Plist) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -982,6 +1015,7 @@ public struct InstallationProxy {
         return Plist(rawValue: result)
     }
 
+    /// Archive an application on the device. This function tells the device to make an archive of the specified application. This results in the device creating a ZIP archive in the 'ApplicationArchives' directory and uninstalling the application.
     public func archive(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1007,6 +1041,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Restore a previously archived application on the device. This function is the counterpart to `archive`.
     public func restore(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1032,6 +1067,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Removes a previously archived application from the device. This function removes the ZIP archive from the 'ApplicationArchives' directory.
     public func removeArchive(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1057,6 +1093,7 @@ public struct InstallationProxy {
         }
     }
 
+    /// Checks a device for certain capabilities.
     public func checkCapabilitiesMatch(capabilities: [String], options: Plist, result: Plist) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1082,6 +1119,7 @@ public struct InstallationProxy {
         return Plist(rawValue: result)
     }
 
+    /// Queries the device for the path of an application.
     public func getPath(for bundleIdentifier: String) throws -> String {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1099,6 +1137,7 @@ public struct InstallationProxy {
         return String(cString: path)
     }
 
+    /// Disconnects an `installation_proxy` client from the device and frees up the `installation_proxy` client data.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -1111,8 +1150,6 @@ public struct InstallationProxy {
 
 
 
-
-
 public struct LockdownService {
     var rawValue: lockdownd_service_descriptor_t?
 
@@ -1120,6 +1157,7 @@ public struct LockdownService {
         self.rawValue = rawValue
     }
 
+    /// Frees memory of a service descriptor as returned by `lockdownd_start_service()`
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -1132,6 +1170,7 @@ public struct LockdownService {
 public struct LockdownClient {
     var rawValue: lockdownd_client_t?
 
+    /// Creates a new lockdownd client for the device and starts initial handshake. The handshake consists out of `query_type`, `validate_pair`, `pair` and `start_session` calls. It uses the internal pairing record management.
     public init(device: Device, withHandshake: Bool, name: String = UUID().uuidString) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1153,6 +1192,7 @@ public struct LockdownClient {
         self.rawValue = client
     }
 
+    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
     public func getService(identifier: String, withEscroBag: Bool = false) throws -> LockdownService {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1175,12 +1215,14 @@ public struct LockdownClient {
         return LockdownService(rawValue: rawService)
     }
 
+    /// Requests to start a service and perform the closure.
     public func startService<T>(identifier: String, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
         var service = try getService(identifier: identifier, withEscroBag: withEscroBag)
         defer { service.free() }
         return try body(service)
     }
 
+    /// Query the type of the service daemon. Depending on whether the device is queried in normal mode or restore mode, different types will be returned.
     public func getQueryType() throws -> String {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1199,6 +1241,7 @@ public struct LockdownClient {
         return String(cString: type)
     }
 
+    /// Retrieves a preferences plist using an optional domain and/or key name.
     public func getValue(domain: String, key: String) throws -> Plist {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1216,6 +1259,7 @@ public struct LockdownClient {
         return Plist(rawValue: plist)
     }
 
+    /// Sets a preferences value using a plist and optional by domain and/or key name.
     public func setValue(domain: String, key:String, value: Plist) throws {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1230,6 +1274,7 @@ public struct LockdownClient {
         }
     }
 
+    /// Removes a preference node by domain and/or key name.
     public func removeValue(domain: String, key: String) throws {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1240,6 +1285,7 @@ public struct LockdownClient {
         }
     }
 
+    /// Retrieves the name of the device from lockdownd set by the user.
     public func getName() throws -> String {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1257,6 +1303,7 @@ public struct LockdownClient {
         return String(cString: pname)
     }
 
+    /// Retrieves the name of the device from lockdownd set by the user.
     public func getDeviceUDID() throws -> String {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
@@ -1275,6 +1322,7 @@ public struct LockdownClient {
 
     }
 
+    /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
     public mutating func free() {
         guard let lockdown = self.rawValue else {
             return
@@ -1325,7 +1373,8 @@ public struct DebugServerCommand {
     init(rawValue: debugserver_command_t) {
         self.rawValue = rawValue
     }
-    
+
+    /// Creates and initializes a new command object.
     init(name: String, arguments: [String]) throws {
         let buffer = UnsafeMutableBufferPointer<UnsafeMutablePointer<Int8>?>.allocate(capacity: arguments.count + 1)
         defer { buffer.deallocate() }
@@ -1343,7 +1392,8 @@ public struct DebugServerCommand {
             throw DebugServerError.unknown
         }
     }
-    
+
+    /// Frees memory of command object.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -1354,6 +1404,7 @@ public struct DebugServerCommand {
 }
 
 public struct DebugServer {
+    /// Starts a new debugserver service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, body: (DebugServer) throws -> T) throws -> T {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1374,7 +1425,8 @@ public struct DebugServer {
             return try body(server)
         })
     }
-    
+
+    /// Encodes a string into hex notation.
     public static func encodeString(buffer: String) -> Data {
         buffer.withCString { (buffer) -> Data in
             var pencodedBuffer: UnsafeMutablePointer<Int8>? = nil
@@ -1395,7 +1447,8 @@ public struct DebugServer {
     init(rawValue: debugserver_client_t) {
         self.rawValue = rawValue
     }
-    
+
+    /// Connects to the debugserver service on the specified device.
     init(device: Device, service: LockdownService) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1414,7 +1467,8 @@ public struct DebugServer {
         }
         self.rawValue = client
     }
-    
+
+    /// Sends raw data using the given debugserver service client.
     public func send(data: String, size: UInt32) throws -> UInt32 {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1430,7 +1484,8 @@ public struct DebugServer {
             return sent
         }
     }
-    
+
+    /// Receives raw data using the given debugserver client with specified timeout.
     public func receive(size: UInt32, timeout: UInt32? = nil) throws -> (Data, UInt32) {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1454,7 +1509,8 @@ public struct DebugServer {
         defer { buffer.deallocate() }
         return (Data(buffer: buffer), received)
     }
-    
+
+    /// Sends a command to the debugserver service.
     public func sendCommand(command: DebugServerCommand) throws -> Data {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1478,7 +1534,8 @@ public struct DebugServer {
         defer { buffer.deallocate() }
         return Data(buffer: buffer)
     }
-    
+
+    /// Receives and parses response of debugserver service.
     public func receiveResponse() throws -> Data {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1499,7 +1556,8 @@ public struct DebugServer {
         defer { buffer.deallocate() }
         return Data(buffer: buffer)
     }
-    
+
+    /// Controls status of ACK mode when sending commands or receiving responses.
     public func setAckMode(enabled: Bool) throws {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1510,7 +1568,8 @@ public struct DebugServer {
             throw error
         }
     }
-    
+
+    /// Sets the argv which launches an app.
     public func setARGV(argv: [String]) throws -> String {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1536,7 +1595,8 @@ public struct DebugServer {
         
         return String(cString: response)
     }
-    
+
+    /// Adds or sets an environment variable.
     public func setEnvironmentHexEncoded(env: String) throws -> String {
         guard let rawValue = self.rawValue else {
             throw DebugServerError.deallocatedClient
@@ -1556,7 +1616,8 @@ public struct DebugServer {
             return String(cString: response)
         }
     }
-    
+
+    /// Disconnects a debugserver client from the device and frees up the debugserver client data.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -1567,6 +1628,7 @@ public struct DebugServer {
 }
 
 extension DebugServer {
+    /// Receives raw data using the given debugserver client with specified timeout.
     func receiveAll(timeout: UInt32? = nil) throws -> Data {
         let size: UInt32 = 131072
         var buffer = Data()
@@ -1608,6 +1670,7 @@ public enum FileRelayRequestSource: String {
 }
 
 public struct FileRelayClient {
+    /// Starts a new `file_relay` service on the specified device and connects to it.
     public static func start<T>(device: Device, label: String, body: (FileRelayClient) throws -> T) throws -> T {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1632,7 +1695,8 @@ public struct FileRelayClient {
     init(rawValue: file_relay_client_t) {
         self.rawValue = rawValue
     }
-    
+
+    /// Connects to the `file_relay` service on the specified device.
     public init(device: Device, service: LockdownService) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1648,7 +1712,8 @@ public struct FileRelayClient {
         }
         self.rawValue = fileRelay
     }
-    
+
+    /// Request data for the given sources. Calls `file_relay_request_sources_timeout()` with a timeout of 60000 milliseconds (60 seconds).
     public func requestSources(sources: [FileRelayRequestSource], timeout: UInt32? = nil) throws -> DeviceConnection {
         guard let rawValue = self.rawValue else {
             throw FileRelayError.deallocatedClient
@@ -1676,7 +1741,8 @@ public struct FileRelayClient {
         
         return connection
     }
-    
+
+    /// Disconnects a `file_relay` client from the device and frees up the `file_relay` client data.
     public mutating func free() throws {
         guard let rawValue = self.rawValue else {
             return
@@ -1711,10 +1777,12 @@ extension InstallationProxyClientOptionsKey {
 
 
 public extension LockdownClient {
+    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
     func getService(service: AppleServiceIdentifier, withEscroBag: Bool = false) throws -> LockdownService {
-        return try getService(service: service, withEscroBag: withEscroBag)
+        return try getService(identifier: service.rawValue, withEscroBag: withEscroBag)
     }
     
+    /// Requests to start a service and perform the closure.
     func startService<T>(service: AppleServiceIdentifier, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
         return try startService(identifier: service.rawValue, withEscroBag: withEscroBag, body: body)
     }
@@ -1735,13 +1803,14 @@ public enum ScreenshotError: Int32, Error {
 
 
 public struct ScreenshotService {
+    /// Starts a new screenshotr service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, body: (ScreenshotService) throws -> T) throws -> T {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
         }
         
         var pscreenshot: screenshotr_client_t? = nil
-        var screenshotError = screenshotr_client_start_service(device, &pscreenshot, label)
+        let screenshotError = screenshotr_client_start_service(device, &pscreenshot, label)
         
         if let error = ScreenshotError(rawValue: screenshotError.rawValue) {
             throw error
@@ -1760,7 +1829,8 @@ public struct ScreenshotService {
     init(rawValue: screenshotr_client_t) {
         self.rawValue = rawValue
     }
-    
+
+    /// Connects to the screenshotr service on the specified device.
     init(device: Device, service: LockdownService) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1779,7 +1849,8 @@ public struct ScreenshotService {
         }
         self.rawValue = client
     }
-    
+
+    /// Get a screen shot from the connected device.
     public func takeScreenshot() throws -> Data {
         guard let rawValue = self.rawValue else {
             throw ScreenshotError.deallocatedService
@@ -1845,6 +1916,7 @@ public struct SyslogReceivedData: CustomStringConvertible {
 }
 
 public struct SyslogRelayClient {
+    /// Starts a new `syslog_relay` service on the specified device and connects to it.
     public static func startService<T>(device: Device, label: String, body: (SyslogRelayClient) throws -> T) throws -> T {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1860,7 +1932,7 @@ public struct SyslogRelayClient {
         }
         var client = SyslogRelayClient(rawValue: pointer)
         let result = try body(client)
-        try client.free()
+        client.free()
         return result
     }
     
@@ -1869,7 +1941,8 @@ public struct SyslogRelayClient {
     init(rawValue: syslog_relay_client_t) {
         self.rawValue = rawValue
     }
-    
+
+    /// Connects to the `syslog_relay` service on the specified device.
     public init(device: Device, service: LockdownService) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1885,7 +1958,8 @@ public struct SyslogRelayClient {
         }
         self.rawValue = syslogRelay
     }
-    
+
+    /// Starts capturing the syslog of the device using a callback.
     public func startCapture(callback: @escaping (Int8) -> Void) throws -> Disposable {
         let p = Unmanaged.passRetained(Wrapper(value: callback))
         
@@ -1906,14 +1980,16 @@ public struct SyslogRelayClient {
             p.release()
         }
     }
-    
+
+    /// Stops capturing the syslog of the device.
     public func stopCapture() throws {
         let rawError = syslog_relay_stop_capture(rawValue)
         if let error = SyslogRelayError(rawValue: rawError.rawValue) {
             throw error
         }
     }
-    
+
+    /// Receives data using the given `syslog_relay` client with specified timeout.
     public func receive(timeout: UInt32? = nil) throws -> String {
         let data = UnsafeMutablePointer<Int8>.allocate(capacity: Int.max)
         var received: UInt32 = 0
@@ -1930,7 +2006,8 @@ public struct SyslogRelayClient {
         
         return String(cString: data)
     }
-    
+
+    /// Disconnects a `syslog_relay` client from the device and frees up the `syslog_relay` client data.
     public mutating func free() {
         guard let rawValue = self.rawValue else {
             return
@@ -1941,6 +2018,7 @@ public struct SyslogRelayClient {
 }
 
 public extension SyslogRelayClient {
+    /// Starts capturing the syslog of the device using a callback.
     func startCaptureMessage(callback: @escaping (SyslogReceivedData) -> Void) throws -> Disposable {
         var buffer: [Int8] = []
         var previousMessage: SyslogReceivedData?
