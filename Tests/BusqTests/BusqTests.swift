@@ -38,6 +38,7 @@ class BusqTests: XCTestCase {
                 //"ApplicationType": Plist(string: "Internal")
             ])
 
+            
             let appsPlists = try proxy.browse(options: opts)
             if let appPlists = appsPlists.array {
                 print("app list:", Array(appPlists).count)
