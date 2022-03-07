@@ -1416,3 +1416,8 @@ PLIST_API plist_err_t plist_to_bin(plist_t plist, char **plist_bin, uint32_t * l
 
     return PLIST_ERR_SUCCESS;
 }
+
+PLIST_API void plist_to_bin_free(char **plist_bin)
+{
+     free(plist_bin);
+}

@@ -37,8 +37,8 @@ public enum ConnectionType: UInt32 {
 }
 
 public struct DeviceInfo {
-    let udid: String
-    let connectionType: ConnectionType
+    public let udid: String
+    public let connectionType: ConnectionType
 }
 
 public struct MobileDevice {
@@ -427,8 +427,6 @@ public struct Device {
     }
 }
 
-
-
 public enum LockdownError: Error {
     case invalidArgument
     case invalidConfiguration
@@ -636,7 +634,7 @@ public enum InstallationProxyError: Int32, Error {
     case installProhibited = -62
     case uninstallProhibited = -63
     case missingBUndleVersion = -64
-    case unknwon = -256
+    case unknown = -256
 
     case deallocatedClient = 100
 }
@@ -724,7 +722,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let client = ipc else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         var proxy = InstallationProxy(rawValue: client)
@@ -779,9 +777,9 @@ public struct InstallationProxy {
         return InstallationProxyStatusError(name: name, description: description, code: pcode)
     }
 
-    public static func statusGetCurrentList(status: Plist) {
-        // TODO
-    }
+//    public static func statusGetCurrentList(status: Plist) {
+//        // TODO
+//    }
 
     public static func statusGetPercentComplete(status: Plist) -> Int32 {
         var percent: Int32 = 0
@@ -810,7 +808,7 @@ public struct InstallationProxy {
             throw error
         }
         guard client != nil else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         self.rawValue = client
@@ -827,7 +825,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let result = presult else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         return Plist(rawValue: result)
@@ -886,7 +884,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let result = presult else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         return Plist(rawValue: result)
@@ -978,7 +976,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let result = presult else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         return Plist(rawValue: result)
@@ -1078,7 +1076,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let result = presult else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
 
         return Plist(rawValue: result)
@@ -1094,7 +1092,7 @@ public struct InstallationProxy {
             throw error
         }
         guard let path = ppath else {
-            throw InstallationProxyError.unknwon
+            throw InstallationProxyError.unknown
         }
         defer { path.deallocate() }
 
@@ -1134,17 +1132,16 @@ public struct LockdownService {
 public struct LockdownClient {
     var rawValue: lockdownd_client_t?
 
-    public init(device: Device, withHandshake: Bool) throws {
+    public init(device: Device, withHandshake: Bool, name: String = UUID().uuidString) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
         }
-        let uuid = UUID().uuidString
         let rawError: lockdownd_error_t
         var client: lockdownd_client_t? = nil
         if withHandshake {
-            rawError = lockdownd_client_new_with_handshake(device, &client, uuid)
+            rawError = lockdownd_client_new_with_handshake(device, &client, name)
         } else {
-            rawError = lockdownd_client_new(device, &client, uuid)
+            rawError = lockdownd_client_new(device, &client, name)
         }
 
         if let error = LockdownError(rawValue: rawError.rawValue) {
@@ -1989,4 +1986,3 @@ private func tryParseMessage(message: String) -> SyslogReceivedData? {
         processInfo: String(processInfo)
     )
 }
-

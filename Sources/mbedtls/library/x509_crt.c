@@ -1202,6 +1202,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt,
         return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_X509_INVALID_FORMAT, ret ) );
     }
 
+    if (0) { // busq: we get an MBEDTLS_ERR_X509_INVALID_NAME error when called from idevice_connection_enable_ssl; perhaps the device doesn't have a name?
     if( ( ret = mbedtls_x509_get_name( &p, p + len, &crt->issuer ) ) != 0 )
     {
         mbedtls_x509_crt_free( crt );
@@ -1209,6 +1210,7 @@ static int x509_crt_parse_der_core( mbedtls_x509_crt *crt,
     }
 
     crt->issuer_raw.len = p - crt->issuer_raw.p;
+    }
 
     /*
      * Validity ::= SEQUENCE {

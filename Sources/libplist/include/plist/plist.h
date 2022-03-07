@@ -672,6 +672,14 @@ extern "C"
      */
     plist_err_t plist_to_xml(plist_t plist, char **plist_xml, uint32_t * length);
 
+
+    /**
+     * Frees the memory allocated by plist_to_xml
+     *
+     * @param plist_xml The object allocated by plist_to_xml
+     */
+    void plist_to_xml_free(char **plist_xml);
+
     /**
      * Export the #plist_t structure to binary format.
      *
@@ -683,6 +691,13 @@ extern "C"
      * @note Use plist_mem_free() to free the allocated memory.
      */
     plist_err_t plist_to_bin(plist_t plist, char **plist_bin, uint32_t * length);
+
+    /**
+     * Frees the memory allocated by plist_to_bin
+     *
+     * @param plist_bin The object allocated by plist_to_bin
+     */
+    void plist_to_bin_free(char **plist_bin);
 
     /**
      * Export the #plist_t structure to JSON format.
