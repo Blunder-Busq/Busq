@@ -44,6 +44,7 @@ let package = Package(
                 "libcnary/COPYING",
                 "include/Makefile.am",
                 "libcnary/README",
+                "libcnary/cnary.c",
                 "src/Makefile.am",
                 "src/libplist-2.0.pc.in",
                 "src/libplist++-2.0.pc.in",
@@ -72,7 +73,6 @@ let package = Package(
                 "src/jsmn.c",
                 "src/bplist.c",
                 "libcnary/node.c",
-                "libcnary/cnary.c",
                 "libcnary/node_list.c",
             ],
             cSettings: [
