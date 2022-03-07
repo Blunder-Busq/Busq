@@ -1,0 +1,24 @@
+name: Busq CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request_target:
+    branches:
+      - '*'
+  schedule:
+    - cron: '0 0,12 * * *'
+
+jobs:
+  ci:
+    runs-on: macos-latest
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_13.2.1.app/Contents/Developer
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Fair Tests
+        run: xcrun swift test
+ 
