@@ -1,0 +1,36 @@
+module libimobiledevice {
+    umbrella header "libimobiledevice/libimobiledevice.h"
+    header "libimobiledevice/libimobiledevice.h"
+
+    header "libimobiledevice/afc.h"
+    //header "libimobiledevice/asprintf.h"
+    header "libimobiledevice/companion_proxy.h"
+    header "libimobiledevice/debugserver.h"
+    header "libimobiledevice/diagnostics_relay.h"
+    header "libimobiledevice/endianness.h"
+    header "libimobiledevice/file_relay.h"
+    header "libimobiledevice/heartbeat.h"
+    header "libimobiledevice/house_arrest.h"
+    header "libimobiledevice/installation_proxy.h"
+    header "libimobiledevice/libimobiledevice.h"
+    header "libimobiledevice/lockdown.h"
+    header "libimobiledevice/misagent.h"
+    header "libimobiledevice/mobile_image_mounter.h"
+    header "libimobiledevice/mobileactivation.h"
+    header "libimobiledevice/mobilebackup.h"
+    header "libimobiledevice/mobilebackup2.h"
+    header "libimobiledevice/mobilesync.h"
+    header "libimobiledevice/notification_proxy.h"
+    header "libimobiledevice/preboard.h"
+    header "libimobiledevice/property_list_service.h"
+    header "libimobiledevice/restore.h"
+    header "libimobiledevice/reverse_proxy.h"
+    header "libimobiledevice/sbservices.h"
+    header "libimobiledevice/screenshotr.h"
+    header "libimobiledevice/service.h"
+    header "libimobiledevice/syslog_relay.h"
+    header "libimobiledevice/webinspector.h"
+
+    export *
+    module * { export * }
+}

@@ -2,6 +2,39 @@
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
+.*.swp
+_site/
+Gemfile
+Gemfile.lock
+.jekyll-cache 
+.DS_Store
+.build
+xcuserdata/
+xcshareddata/
+build/
+staging/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+Packages/
+Package.pins
+Package.resolved
+.swiftpm
+.build/
+
 ## User settings
 xcuserdata/
 
@@ -44,7 +77,7 @@ playground.xcworkspace
 #
 # Xcode automatically generates this directory with a .xcworkspacedata file and xcuserdata
 # hence it is not needed unless you have added a package configuration file to your project
-# .swiftpm
+.swiftpm
 
 .build/
 
