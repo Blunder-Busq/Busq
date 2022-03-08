@@ -242,6 +242,7 @@ userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 
 	config_path = userpref_get_config_dir();
 	config_dir = opendir(config_path);
+#ifndef WIN32 // busq: dirent not on Windows
 	if (config_dir) {
 		struct dirent *entry;
 		while ((entry = readdir(config_dir))) {
@@ -273,6 +274,7 @@ userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 		}
 		closedir(config_dir);
 	}
+#endif
 	(*list)[found] = NULL;
 
 	if (count) {
