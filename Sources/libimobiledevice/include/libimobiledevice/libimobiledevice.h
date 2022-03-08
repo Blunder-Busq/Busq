@@ -55,14 +55,14 @@ typedef idevice_connection_private *idevice_connection_t; /**< The connection ha
 
 /** Options for idevice_new_with_options() */
 enum idevice_options {
-	IDEVICE_LOOKUP_USBMUX = 1 << 1,  /**< include USBMUX devices during lookup */
-	IDEVICE_LOOKUP_NETWORK = 1 << 2, /**< include network devices during lookup */
-	IDEVICE_LOOKUP_PREFER_NETWORK = 1 << 3 /**< prefer network connection if device is available via USBMUX *and* network */
+	IDEVICE_LOOKUP_USBMUX = 1u << 1,  /**< include USBMUX devices during lookup */
+	IDEVICE_LOOKUP_NETWORK = 1u << 2, /**< include network devices during lookup */
+	IDEVICE_LOOKUP_PREFER_NETWORK = 1u << 3 /**< prefer network connection if device is available via USBMUX *and* network */
 };
 
 /** Type of connection a device is available on */
 enum idevice_connection_type {
-	CONNECTION_USBMUXD = 1,
+	CONNECTION_USBMUXD = 1u,
 	CONNECTION_NETWORK
 };
 
