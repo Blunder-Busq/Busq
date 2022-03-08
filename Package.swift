@@ -76,8 +76,8 @@ let package = Package(
                 "libcnary/node_list.c",
             ],
             cSettings: [
-                .define("HAVE_STRNDUP"),
                 .define("WIN32", .when(platforms: [.windows])),
+                .define("HAVE_STRNDUP"),
 
 //                .headerSearchPath("src", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
 //                .headerSearchPath("libcnary/include", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
@@ -135,13 +135,13 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
+                .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("HAVE_GETIFADDRS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
                 .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
-                .define("WIN32", .when(platforms: [.windows])),
             ]
         ),
         .target(
@@ -168,6 +168,7 @@ let package = Package(
                 "include/Makefile.am",
             ],
             cSettings: [
+                .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
@@ -203,6 +204,7 @@ let package = Package(
                 "common/Makefile.am",
             ],
             cSettings: [
+                .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
