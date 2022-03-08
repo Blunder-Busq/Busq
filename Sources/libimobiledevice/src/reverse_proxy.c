@@ -81,6 +81,7 @@ static void _reverse_proxy_log(reverse_proxy_client_t client, const char* format
 	if (!client || !client->log_cb) {
 		return;
 	}
+#ifndef WIN32 // busq: windows missing vasprintf
 	va_list args;
 	va_start(args, format);
 	char* buffer = NULL;
@@ -88,6 +89,7 @@ static void _reverse_proxy_log(reverse_proxy_client_t client, const char* format
 	va_end(args);
 	client->log_cb(client, buffer, client->log_cb_user_data);
 	free(buffer);
+#endif
 }
 
 static void _reverse_proxy_data(reverse_proxy_client_t client, int direction, char* buffer, uint32_t length)
@@ -103,6 +105,7 @@ static void _reverse_proxy_status(reverse_proxy_client_t client, int status, con
 	if (!client || !client->status_cb) {
 		return;
 	}
+#ifndef WIN32 // busq: windows missing vasprintf
 	va_list args;
 	va_start(args, format);
 	char* buffer = NULL;
@@ -110,6 +113,7 @@ static void _reverse_proxy_status(reverse_proxy_client_t client, int status, con
 	va_end(args);
 	client->status_cb(client, status, buffer, client->status_cb_user_data);
 	free(buffer);
+#endif
 }
 
 static int _reverse_proxy_handle_proxy_cmd(reverse_proxy_client_t client)
