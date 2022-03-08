@@ -51,6 +51,10 @@
 #include "common/userpref.h"
 #include "libimobiledevice/libimobiledevice.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #define DEVICE_VERSION(maj, min, patch) (((maj & 0xFF) << 16) | ((min & 0xFF) << 8) | (patch & 0xFF))
 
 #define DEVICE_CLASS_IPHONE  1
