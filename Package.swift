@@ -222,7 +222,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                //.headerSearchPath(".", .when(platforms: Platform.nonwindows)),
+                .headerSearchPath(".\(pathsep)"),
                 .headerSearchPath("include\(pathsep)libimobiledevice"),
             ]
         ),
