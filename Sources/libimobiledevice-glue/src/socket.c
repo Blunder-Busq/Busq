@@ -67,9 +67,7 @@ static int wsa_init = 0;
 #endif
 #include "common.h"
 
-#ifndef WIN32
 #include "libimobiledevice-glue/socket.h"
-#endif
 
 #define RECV_TIMEOUT 20000
 #define SEND_TIMEOUT 10000
