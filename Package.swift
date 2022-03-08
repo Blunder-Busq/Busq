@@ -1,6 +1,8 @@
 // swift-tools-version:5.5
 import PackageDescription
 
+let nonWindowsPlatforms = [Platform.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst]
+
 let package = Package(
     name: "Busq",
     platforms: [ .macOS(.v11), .iOS(.v14) ],
@@ -79,7 +81,7 @@ let package = Package(
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .headerSearchPath("src"),
-                .headerSearchPath("libcnary/include", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
+                .headerSearchPath("libcnary/include", .when(platforms: nonWindowsPlatforms)),
                 .headerSearchPath("libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
             ],
             swiftSettings: [
@@ -134,7 +136,7 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
-                .define("HAVE_GETIFADDRS", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
+                .define("HAVE_GETIFADDRS", .when(platforms: nonWindowsPlatforms)),
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
@@ -208,8 +210,8 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .headerSearchPath("."),
-//                .headerSearchPath("include/libimobiledevice", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
+                .headerSearchPath(".", .when(platforms: nonWindowsPlatforms)),
+                .headerSearchPath("include/libimobiledevice", .when(platforms: nonWindowsPlatforms)),
                 .headerSearchPath("include\\libimobiledevice", .when(platforms: [.windows])),
             ],
             swiftSettings: [
