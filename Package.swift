@@ -1,6 +1,18 @@
 // swift-tools-version:5.5
 import PackageDescription
 
+#if os(Windows)
+let isWindows = true
+#else
+let isWindows = false
+#endif
+
+#if os(Linux)
+let isLinux = true
+#else
+let isLinux = false
+#endif
+
 let package = Package(
     name: "Busq",
     platforms: [ .macOS(.v11), .iOS(.v14) ],
@@ -203,7 +215,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .headerSearchPath("common/.."),
+                .headerSearchPath(!isWindows ? "." : ""),
                 .headerSearchPath("include/libimobiledevice"),
             ],
             swiftSettings: [
