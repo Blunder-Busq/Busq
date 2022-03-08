@@ -98,8 +98,7 @@ let package = Package(
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .headerSearchPath("src"),
-//                .headerSearchPath("libcnary\(pathsep)include", .when(platforms: Platform.nonwindows)),
-                .headerSearchPath("libcnary\(pathsep)include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
+                .headerSearchPath("libcnary\(pathsep)include"),
             ]
         ),
         .target(
@@ -149,8 +148,8 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
-                .define("HAVE_GETIFADDRS", .when(platforms: Platform.nonwindows)),
                 .define("WIN32", .when(platforms: [.windows])),
+                .define("HAVE_GETIFADDRS", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("HAVE_VASPRINTF"),
@@ -224,9 +223,8 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-//                .headerSearchPath(".", .when(platforms: Platform.nonwindows)),
-//                .headerSearchPath("include\(pathsep)libimobiledevice", .when(platforms: Platform.nonwindows)),
-                .headerSearchPath("include\(pathsep)libimobiledevice", .when(platforms: [.windows])),
+                .headerSearchPath("."),
+                .headerSearchPath("include\(pathsep)libimobiledevice"),
             ]
         ),
         .testTarget(name: "BusqTests", dependencies: [
