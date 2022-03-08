@@ -14,6 +14,12 @@ extension Platform {
     ]
 }
 
+#if os(Windows)
+let pathsep = "\\"
+#else
+let pathsep = "/"
+#endif
+
 let package = Package(
     name: "Busq",
     platforms: [ .macOS(.v11), .iOS(.v14) ],
@@ -91,9 +97,9 @@ let package = Package(
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
-//                .headerSearchPath("src", .when(platforms: Platform.nonwindows)),
-//                .headerSearchPath("libcnary/include", .when(platforms: Platform.nonwindows)),
-                .headerSearchPath("libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
+                .headerSearchPath("src"),
+//                .headerSearchPath("libcnary\(pathsep)include", .when(platforms: Platform.nonwindows)),
+                .headerSearchPath("libcnary\(pathsep)include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
             ]
         ),
         .target(
@@ -219,8 +225,8 @@ let package = Package(
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
 //                .headerSearchPath(".", .when(platforms: Platform.nonwindows)),
-//                .headerSearchPath("include/libimobiledevice", .when(platforms: Platform.nonwindows)),
-                .headerSearchPath("include\\libimobiledevice", .when(platforms: [.windows])),
+//                .headerSearchPath("include\(pathsep)libimobiledevice", .when(platforms: Platform.nonwindows)),
+                .headerSearchPath("include\(pathsep)libimobiledevice", .when(platforms: [.windows])),
             ]
         ),
         .testTarget(name: "BusqTests", dependencies: [
