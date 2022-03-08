@@ -60,7 +60,8 @@
 
 #include <ws2tcpip.h>
 
-//#include <winsock2.h>
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
 #include <windows.h>
 #if (_WIN32_WINNT < 0x0501)
 #include <wspiapi.h>

@@ -30,7 +30,8 @@
 #include <string.h>
 
 #ifdef WIN32
-  #define USBMUXD_API __declspec( dllexport )
+  #define USBMUXD_API
+  // #define USBMUXD_API __declspec( dllexport ) // busq: “”
 #else
   #ifdef HAVE_FVISIBILITY
     #define USBMUXD_API __attribute__((visibility("default")))
@@ -52,7 +53,8 @@
 #include <signal.h>
 
 #ifdef WIN32
-//#include <winsock2.h>
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
 #include <windows.h>
 #ifndef HAVE_SLEEP
 #define sleep(x) Sleep(x*1000)

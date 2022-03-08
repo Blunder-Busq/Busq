@@ -32,7 +32,8 @@
 #include <errno.h>
 #include <signal.h>
 #ifdef WIN32
-//#include <winsock2.h>
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
 #include <windows.h>
 #else
 #include <sys/select.h>
