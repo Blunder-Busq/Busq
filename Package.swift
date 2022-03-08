@@ -77,6 +77,8 @@ let package = Package(
             ],
             cSettings: [
                 .define("HAVE_STRNDUP"),
+                .define("WIN32", .when(platforms: [.windows])),
+
 //                .headerSearchPath("src", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
 //                .headerSearchPath("libcnary/include", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
                 //.headerSearchPath(".\\libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
@@ -139,6 +141,7 @@ let package = Package(
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
                 .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
+                .define("WIN32", .when(platforms: [.windows])),
             ]
         ),
         .target(

@@ -49,7 +49,6 @@
 #define ECONNREFUSED 107
 #endif
 
-//#include <unistd.h>
 #include <signal.h>
 
 #ifdef WIN32
@@ -59,6 +58,7 @@
 #define sleep(x) Sleep(x*1000)
 #endif
 #else
+#include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #if defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME) && !defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME_ERRNO_H)
