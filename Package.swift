@@ -1,7 +1,18 @@
 // swift-tools-version:5.5
 import PackageDescription
 
-let nonWindowsPlatforms = [Platform.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst]
+extension Platform {
+    /// Every platform except windows
+    static let nonwindows: [Platform] = [
+        .android,
+        .linux,
+        .macOS,
+        .iOS,
+        .tvOS,
+        .watchOS,
+        .macCatalyst,
+    ]
+}
 
 let package = Package(
     name: "Busq",
@@ -80,8 +91,8 @@ let package = Package(
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
-                .headerSearchPath("src"),
-                .headerSearchPath("libcnary/include", .when(platforms: nonWindowsPlatforms)),
+                //.headerSearchPath("src"),
+                .headerSearchPath("libcnary/include", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
             ],
             swiftSettings: [
@@ -136,7 +147,7 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
-                .define("HAVE_GETIFADDRS", .when(platforms: nonWindowsPlatforms)),
+                .define("HAVE_GETIFADDRS", .when(platforms: Platform.nonwindows)),
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
@@ -173,7 +184,7 @@ let package = Package(
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
-                .headerSearchPath("include"),
+                //.headerSearchPath("include"),
             ]
         ),
         .target(
@@ -211,8 +222,8 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .headerSearchPath(".", .when(platforms: nonWindowsPlatforms)),
-                .headerSearchPath("include/libimobiledevice", .when(platforms: nonWindowsPlatforms)),
+                //.headerSearchPath(".", .when(platforms: Platform.nonwindows)),
+                .headerSearchPath("include/libimobiledevice", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("include\\libimobiledevice", .when(platforms: [.windows])),
             ],
             swiftSettings: [
