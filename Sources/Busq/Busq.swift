@@ -100,9 +100,9 @@ public struct MobileDevice {
 
             let action = Unmanaged<Wrapper<(Event) -> Void>>.fromOpaque(userData).takeUnretainedValue().value
             let event = Event(
-                type: EventType(rawValue: rawEvent.pointee.event.rawValue),
+                type: EventType(rawValue: .init(coercing: rawEvent.pointee.event.rawValue)),
                 udid: String(cString: rawEvent.pointee.udid),
-                connectionType: ConnectionType(rawValue: rawEvent.pointee.conn_type.rawValue)
+                connectionType: ConnectionType(rawValue: .init(coercing: rawEvent.pointee.conn_type.rawValue))
             )
             action(event)
         }, p.toOpaque())
@@ -158,7 +158,7 @@ public struct MobileDevice {
                 continue
             }
             let udid = String(cString: item.pointee.udid)
-            guard let connectionType = ConnectionType(rawValue: item.pointee.conn_type.rawValue) else {
+            guard let connectionType = ConnectionType(rawValue: .init(coercing: item.pointee.conn_type.rawValue)) else {
                 continue
             }
 
@@ -332,7 +332,7 @@ public final class Device {
 
     /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available, with the given lookup options.
     public init(udid: String, options: DeviceLookupOptions) throws {
-        let rawError = idevice_new_with_options(&rawValue, udid, .init(options.rawValue))
+        let rawError = idevice_new_with_options(&rawValue, udid, .init(.init(coercing: options.rawValue)))
         if let error = MobileDeviceError(rawValue: rawError.rawValue) {
             throw error
         }
@@ -1992,4 +1992,28 @@ private func parseLog(message: String) -> SyslogMessageSink? {
         name: String(name),
         processInfo: String(processInfo)
     )
+}
+
+private extension UInt32 {
+    /// Shim for importing various uint32/int32 on Windows vs. others
+    init(coercing value: Int32) {
+        self.init(value)
+    }
+
+    /// Shim for importing various uint32/int32 on Windows vs. others
+    init(coercing value: UInt32) {
+        self.init(value)
+    }
+}
+
+private extension Int32 {
+    /// Shim for importing various uint32/int32 on Windows vs. others
+    init(coercing value: Int32) {
+        self.init(value)
+    }
+
+    /// Shim for importing various uint32/int32 on Windows vs. others
+    init(coercing value: UInt32) {
+        self.init(value)
+    }
 }
