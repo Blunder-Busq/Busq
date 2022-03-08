@@ -331,7 +331,9 @@ int main(int argc, char **argv)
 		switch(disk_image_upload_type) {
 			case DISK_IMAGE_UPLOAD_TYPE_UPLOAD_IMAGE:
 				printf("Uploading %s\n", image_path);
+                #ifndef WIN32
 				err = mobile_image_mounter_upload_image(mim, imagetype, image_size, sig, sig_length, mim_upload_cb, f);
+                #endif
 				break;
 			case DISK_IMAGE_UPLOAD_TYPE_AFC:
 			default:

@@ -183,6 +183,8 @@ static mobile_image_mounter_error_t process_result(plist_t result, const char *e
 	return res;
 }
 
+#ifndef WIN32
+
 LIBIMOBILEDEVICE_API mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata)
 {
 	if (!client || !image_type || (image_size == 0) || !upload_cb) {
@@ -261,6 +263,7 @@ leave_unlock:
 	return res;
 
 }
+#endif
 
 LIBIMOBILEDEVICE_API mobile_image_mounter_error_t mobile_image_mounter_mount_image(mobile_image_mounter_client_t client, const char *image_path, const char *signature, uint16_t signature_size, const char *image_type, plist_t *result)
 {

@@ -52,8 +52,10 @@ typedef mobile_image_mounter_client_private *mobile_image_mounter_client_t; /**<
 typedef SSIZE_T ssize_t;
 #endif
 
+#ifndef WIN32 // busq: “mobile_image_mounter.h:56:17: error: function cannot return function type 'int (void *, size_t, void *)' (aka 'int (void *, unsigned long long, void *)')”
 /** callback for image upload */
 typedef ssize_t (*mobile_image_mounter_upload_cb_t) (void* buffer, size_t length, void *user_data);
+#endif
 
 /* Interface */
 
@@ -131,7 +133,9 @@ mobile_image_mounter_error_t mobile_image_mounter_lookup_image(mobile_image_moun
  * @return MOBILE_IMAGE_MOUNTER_E_SUCCESS on succes, or a
  *    MOBILE_IMAGE_MOUNTER_E_* error code otherwise.
  */
+#ifndef WIN32
 mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata);
+#endif
 
 /**
  * Mounts an image on the device.
