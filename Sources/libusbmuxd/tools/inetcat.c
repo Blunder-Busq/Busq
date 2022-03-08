@@ -39,7 +39,7 @@
 #include <errno.h>
 #include <getopt.h>
 #ifdef WIN32
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <windows.h>
 #else
 #include <sys/select.h>

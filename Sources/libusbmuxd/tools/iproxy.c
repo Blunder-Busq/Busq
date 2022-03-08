@@ -40,7 +40,7 @@
 #include <errno.h>
 #include <getopt.h>
 #ifdef WIN32
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <windows.h>
 typedef unsigned int socklen_t;
 #else

@@ -61,7 +61,7 @@ int main( void )
 /* For select() */
 #if (defined(_WIN32) || defined(_WIN32_WCE)) && !defined(EFIX64) && \
     !defined(EFI32)
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <windows.h>
 #if defined(_MSC_VER)
 #if defined(_WIN32_WCE)

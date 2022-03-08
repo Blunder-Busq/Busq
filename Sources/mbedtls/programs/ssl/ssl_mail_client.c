@@ -75,7 +75,7 @@ int main( void )
 #endif
 
 #if defined(_WIN32) || defined(_WIN32_WCE)
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <windows.h>
 
 #if defined(_MSC_VER)

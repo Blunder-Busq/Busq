@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #ifdef WIN32
-#include <winsock2.h>
+//#include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
 #ifndef HAVE_GETIFADDRS
