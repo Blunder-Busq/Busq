@@ -34,8 +34,8 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <dirent.h>
-#endif
 #include <libgen.h>
+#endif
 #include <ctype.h>
 #include <time.h>
 

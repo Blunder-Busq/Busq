@@ -66,8 +66,8 @@
 
 #ifndef WIN32
 #include <dirent.h>
-#endif
 #include <libgen.h>
+#endif
 #include <sys/stat.h>
 #include <errno.h>
 
