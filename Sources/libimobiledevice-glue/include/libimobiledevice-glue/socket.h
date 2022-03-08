@@ -34,7 +34,7 @@ typedef enum fd_mode fd_mode;
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
+//#include <winsock2.h> // busq: “error: redefinition of 'sockaddr'”
 #define SHUT_RD SD_READ
 #define SHUT_WR SD_WRITE
 #define SHUT_RDWR SD_BOTH
