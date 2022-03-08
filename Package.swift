@@ -173,6 +173,7 @@ let package = Package(
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
+                .headerSearchPath("include"),
             ]
         ),
         .target(
