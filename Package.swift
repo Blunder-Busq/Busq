@@ -222,7 +222,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .headerSearchPath(".\(pathsep)"),
+                .headerSearchPath("include\(pathsep).."), // needed to work around windows error when including ".": “header search path should not be outside the package root”
                 .headerSearchPath("include\(pathsep)libimobiledevice"),
             ]
         ),
