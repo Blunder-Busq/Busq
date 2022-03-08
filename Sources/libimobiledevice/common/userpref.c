@@ -64,7 +64,9 @@
 #error No supported TLS/SSL library enabled
 #endif
 
+#ifndef WIN32
 #include <dirent.h>
+#endif
 #include <libgen.h>
 #include <sys/stat.h>
 #include <errno.h>

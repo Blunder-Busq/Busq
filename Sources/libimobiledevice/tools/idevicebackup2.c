@@ -33,8 +33,8 @@
 #include <signal.h>
 #ifndef WIN32
 #include <unistd.h>
-#endif
 #include <dirent.h>
+#endif
 #include <libgen.h>
 #include <ctype.h>
 #include <time.h>
