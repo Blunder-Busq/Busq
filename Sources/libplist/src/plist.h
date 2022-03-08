@@ -37,7 +37,8 @@
 #endif
 
 #ifdef WIN32
-  #define PLIST_API __declspec( dllexport )
+  // #define PLIST_API __declspec( dllexport ) // error: redeclaration of 'plist_get_key_val' cannot add 'dllexport' attribute
+  #define PLIST_API
 #else
   #include <sys/time.h>
 
