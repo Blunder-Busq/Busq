@@ -97,7 +97,7 @@ let package = Package(
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
-                //.headerSearchPath("src"),
+                .headerSearchPath("src"),
                 .headerSearchPath("libcnary\(pathsep)include"),
             ]
         ),
@@ -223,7 +223,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                //.headerSearchPath("."),
+                .headerSearchPath(".", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("include\(pathsep)libimobiledevice"),
             ]
         ),
