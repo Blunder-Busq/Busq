@@ -26,7 +26,8 @@
 #endif
 
 #ifdef WIN32
-#define LIBIMOBILEDEVICE_GLUE_API __declspec( dllexport )
+#define LIBIMOBILEDEVICE_GLUE_API
+//#define LIBIMOBILEDEVICE_GLUE_API __declspec( dllexport ) // “error: redeclaration of 'socket_close' cannot add 'dllexport' attribute”
 #else
 #ifdef HAVE_FVISIBILITY
 #define LIBIMOBILEDEVICE_GLUE_API __attribute__((visibility("default")))

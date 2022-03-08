@@ -137,7 +137,7 @@ let package = Package(
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
-                //.define("HAVE_GETIFADDRS"),
+                //.define("HAVE_GETIFADDRS"), // TODO: un-windows?
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
                 .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
