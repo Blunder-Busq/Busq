@@ -228,6 +228,11 @@ static int connect_usbmuxd_socket()
 	return res;
 }
 
+#ifdef WIN32
+//#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 static void sanitize_udid(usbmuxd_device_info_t *devinfo)
 {
 	if (!devinfo)

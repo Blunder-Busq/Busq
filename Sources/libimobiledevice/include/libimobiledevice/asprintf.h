@@ -5,7 +5,7 @@
 #include <config.h>
 #endif
 
-#ifndef HAVE_VASPRINTF
+//#ifndef HAVE_VASPRINTF
 #ifdef WIN32
 static inline int vasprintf(char **PTR, const char *TEMPLATE, va_list AP)
 {
@@ -19,9 +19,9 @@ static inline int vasprintf(char **PTR, const char *TEMPLATE, va_list AP)
 	return res;
 }
 #endif
-#endif
+//#endif
 
-#ifndef HAVE_ASPRINTF
+//#ifndef HAVE_ASPRINTF
 #ifdef WIN32
 static inline int asprintf(char **PTR, const char *TEMPLATE, ...)
 {
@@ -33,6 +33,6 @@ static inline int asprintf(char **PTR, const char *TEMPLATE, ...)
 	return res;
 }
 #endif
-#endif
+//#endif
 
 #endif /* ASPRINTF_H */

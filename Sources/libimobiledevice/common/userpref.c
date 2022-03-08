@@ -165,7 +165,7 @@ const char *userpref_get_config_dir()
 		b = SHGetPathFromIDListW (pidl, path);
 		if (b) {
 			base_config_dir = userpref_utf16_to_utf8 (path, wcslen(path), NULL, NULL);
-			CoTaskMemFree (pidl);
+			//CoTaskMemFree (pidl);
 		}
 	}
 #else
