@@ -222,8 +222,8 @@ let package = Package(
             ],
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
-                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_MBEDTLS"),
+                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_ASPRINTF", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("src"),
