@@ -134,10 +134,10 @@ let package = Package(
                 "src/libimobiledevice-glue-1.0.pc.in",
             ],
             cSettings: [
+                .define("HAVE_GETIFADDRS", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
-                //.define("HAVE_GETIFADDRS"), // TODO: un-windows?
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
                 .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
@@ -208,9 +208,9 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-//                .headerSearchPath(".", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
+                .headerSearchPath("."),
 //                .headerSearchPath("include/libimobiledevice", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
-                //.headerSearchPath(".\\include\\libimobiledevice", .when(platforms: [.windows])),
+                .headerSearchPath("include\\libimobiledevice", .when(platforms: [.windows])),
             ],
             swiftSettings: [
             ],
