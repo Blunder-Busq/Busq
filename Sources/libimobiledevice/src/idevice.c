@@ -32,6 +32,11 @@
 
 #include <usbmuxd.h>
 
+#ifdef WIN32
+//#include <windows.h>
+#include <winsock2.h>
+#endif
+
 #if defined(HAVE_OPENSSL)
 #include <openssl/err.h>
 #include <openssl/rsa.h>
@@ -55,10 +60,6 @@
 #include "lockdown.h"
 #include "common/userpref.h"
 #include "common/debug.h"
-
-#ifdef WIN32
-#include <windows.h>
-#endif
 
 #ifndef ETIMEDOUT
 #define ETIMEDOUT 138
