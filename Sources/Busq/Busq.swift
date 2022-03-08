@@ -280,7 +280,6 @@ public final class DeviceConnection {
             return
         }
         idevice_disconnect(rawValue)
-        self.rawValue = nil
     }
 }
 
@@ -320,22 +319,27 @@ public enum MobileDeviceError: Int32, Error {
 
 /// A connection to a device.
 public final class Device {
-    var rawValue: idevice_t? = nil
+    let rawValue: idevice_t?
 
     /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available (USBMUX devices only).
     public init(udid: String) throws {
-        let rawError = idevice_new(&rawValue, udid)
+        var dev: idevice_t?
+        let rawError = idevice_new(&dev, udid)
         if let error = MobileDeviceError(rawValue: rawError.rawValue) {
             throw error
         }
+        self.rawValue = dev
     }
 
     /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available, with the given lookup options.
     public init(udid: String, options: DeviceLookupOptions) throws {
-        let rawError = idevice_new_with_options(&rawValue, udid, .init(.init(coercing: options.rawValue)))
+        var dev: idevice_t?
+
+        let rawError = idevice_new_with_options(&dev, udid, .init(.init(coercing: options.rawValue)))
         if let error = MobileDeviceError(rawValue: rawError.rawValue) {
             throw error
         }
+        self.rawValue = dev
     }
 
     /// Set up a connection to the given device.
@@ -393,7 +397,6 @@ public final class Device {
     func dealloc() {
         if let rawValue = self.rawValue {
             idevice_free(rawValue)
-            self.rawValue = nil
         }
     }
 }
@@ -623,7 +626,7 @@ public enum InstallationProxyClientOptionsKey {
 
 
 public final class InstallationProxyOptions {
-    var rawValue: plist_t?
+    let rawValue: plist_t?
 
     /// Creates a new `client_options` plist.
     init() {
@@ -669,15 +672,44 @@ public final class InstallationProxyOptions {
             return
         }
         instproxy_client_options_free(rawValue)
-        self.rawValue = nil
     }
 }
 
 /// Manage applications on a device
 public final class InstallationProxy {
+    private let rawValue: instproxy_client_t?
+    public let device: Device
+
+    init(rawValue: instproxy_client_t, device: Device) {
+        self.rawValue = rawValue
+        self.device = device
+    }
+
+    /// Connects to the `installation_proxy` service on the specified device.
+    init(device dev: Device, service: LockdownService) throws {
+        guard let device = dev.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+        guard let service = service.rawValue else {
+            throw LockdownError.notStartService
+        }
+
+        var client: instproxy_client_t? = nil
+        let rawError = instproxy_client_new(device, service, &client)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard client != nil else {
+            throw InstallationProxyError.unknown
+        }
+
+        self.rawValue = client
+        self.device = dev
+    }
+
     /// Starts a new `installation_proxy` service on the specified device and connects to it.
-    static func start<T>(device: Device, label: String, action: (InstallationProxy) throws -> T) throws -> T {
-        guard let device = device.rawValue else {
+    static func start<T>(device dev: Device, label: String, action: (InstallationProxy) throws -> T) throws -> T {
+        guard let device = dev.rawValue else {
             throw MobileDeviceError.deallocatedDevice
         }
         var ipc: instproxy_client_t? = nil
@@ -689,10 +721,8 @@ public final class InstallationProxy {
             throw InstallationProxyError.unknown
         }
 
-        let proxy = InstallationProxy(rawValue: client)
-        return try withExtendedLifetime(proxy) { proxy in
-            try action(InstallationProxy(rawValue: client))
-        }
+        let proxy = InstallationProxy(rawValue: client, device: dev)
+        return try action(proxy)
     }
 
     /// Gets the name from a command dictionary.
@@ -756,32 +786,6 @@ public final class InstallationProxy {
         return percent
     }
 
-    private var rawValue: instproxy_client_t?
-
-    init(rawValue: instproxy_client_t) {
-        self.rawValue = rawValue
-    }
-
-    /// Connects to the `installation_proxy` service on the specified device.
-    init(device: Device, service: LockdownService) throws {
-        guard let device = device.rawValue else {
-            throw MobileDeviceError.deallocatedDevice
-        }
-        guard let service = service.rawValue else {
-            throw LockdownError.notStartService
-        }
-
-        var client: instproxy_client_t? = nil
-        let rawError = instproxy_client_new(device, service, &client)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-        guard client != nil else {
-            throw InstallationProxyError.unknown
-        }
-
-        self.rawValue = client
-    }
 
     /// List installed applications. This function runs synchronously.
     public func browse(options: Plist) throws -> Plist {
@@ -1087,14 +1091,24 @@ public final class InstallationProxy {
         }
 
         instproxy_client_free(rawValue)
-        self.rawValue = nil
     }
 }
 
+public extension InstallationProxy {
+    /// Returns the list of installed apps of the given type
+    func getAppList(type appType: ApplicationType) throws -> [InstalledAppInfo] {
+        let opts = Plist(dictionary: [
+            "ApplicationType": Plist(string: appType.rawValue)
+        ])
+
+        let appsPlists = try browse(options: opts)
+        return appsPlists.array?.map(InstalledAppInfo.init) ?? []
+    }
+}
 
 /// Manage device preferences, start services, pairing and activation.
 public final class LockdownService {
-    var rawValue: lockdownd_service_descriptor_t?
+    let rawValue: lockdownd_service_descriptor_t?
 
     init(rawValue: lockdownd_service_descriptor_t) {
         self.rawValue = rawValue
@@ -1106,18 +1120,26 @@ public final class LockdownService {
             return
         }
         lockdownd_service_descriptor_free(rawValue)
-        self.rawValue = nil
+    }
+}
+
+public extension Device {
+    /// Creates a LockdownClient to manage device preferences, start services, pairing and activation.
+    func createLockdownClient(withHandshake: Bool = true, name: String = UUID().uuidString) throws -> LockdownClient {
+        try LockdownClient(device: self, withHandshake: withHandshake, name: name)
     }
 }
 
 /// Manage device preferences, start services, pairing and activation.
 public final class LockdownClient {
-    var rawValue: lockdownd_client_t?
+    public let device: Device
+    let rawValue: lockdownd_client_t?
 
     /// Creates a new lockdownd client for the device and starts initial handshake. The handshake consists out of `query_type`, `validate_pair`, `pair` and `start_session` calls. It uses the internal pairing record management.
     ///
     ///  This function does not pair with the device or start a session. This has to be done manually by the caller after the client is created. The device disconnects automatically if the lockdown connection idles for more than 10 seconds. Make sure to call `lockdownd_client_free()` as soon as the connection is no longer needed.
-    public init(device: Device, withHandshake: Bool, name: String = UUID().uuidString) throws {
+    fileprivate init(device: Device, withHandshake: Bool, name: String) throws {
+        self.device = device
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
         }
@@ -1186,8 +1208,29 @@ public final class LockdownClient {
         return String(cString: type)
     }
 
+
+    public var deviceName: String? {
+        get throws { try getValue(key: "DeviceName").string }
+    }
+
+    public var uniqueDeviceID: String? {
+        get throws { try getValue(key: "UniqueDeviceID").string }
+    }
+
+    public var productVersion: String? {
+        get throws { try getValue(key: "ProductVersion").string }
+    }
+
+    public var wiFiAddress: String? {
+        get throws { try getValue(key: "WiFiAddress").string }
+    }
+
+    public var devicePublicKey: String? {
+        get throws { try getValue(key: "DevicePublicKey").string }
+    }
+
     /// Retrieves a preferences plist using an optional domain and/or key name.
-    public func getValue(domain: String, key: String) throws -> Plist {
+    public func getValue(domain: String? = nil, key: String) throws -> Plist {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
         }
@@ -1273,10 +1316,14 @@ public final class LockdownClient {
             return
         }
         lockdownd_client_free(lockdown)
-        self.rawValue = nil
     }
 }
 
+public extension LockdownClient {
+    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
+        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
+    }
+}
 
 
 
@@ -1292,7 +1339,7 @@ public enum DebugServerError: Int32, Error {
 }
 
 public final class DebugServerCommand {
-    var rawValue: debugserver_command_t?
+    let rawValue: debugserver_command_t?
     
     init(rawValue: debugserver_command_t) {
         self.rawValue = rawValue
@@ -1307,11 +1354,13 @@ public final class DebugServerCommand {
         }
 
         buffer[arguments.count] = nil
-        let rawError = debugserver_command_new(name, Int32(arguments.count), buffer.baseAddress, &rawValue)
+        var cmd: debugserver_command_t?
+        let rawError = debugserver_command_new(name, Int32(arguments.count), buffer.baseAddress, &cmd)
         buffer.forEach { $0?.deallocate() }
         if let error = DebugServerError(rawValue: rawError.rawValue) {
             throw error
         }
+        self.rawValue = cmd
         guard rawValue == nil else {
             throw DebugServerError.unknown
         }
@@ -1323,7 +1372,6 @@ public final class DebugServerCommand {
             return
         }
         debugserver_command_free(rawValue)
-        self.rawValue = nil
     }
 }
 
@@ -1613,7 +1661,7 @@ public final class FileRelayClient {
         return result
     }
     
-    var rawValue: file_relay_client_t?
+    let rawValue: file_relay_client_t?
 
     init(rawValue: file_relay_client_t) {
         self.rawValue = rawValue
@@ -1674,7 +1722,6 @@ public final class FileRelayClient {
         if let error = FileRelayError(rawValue: rawError.rawValue) {
             throw error
         }
-        self.rawValue = nil
     }
 }
 
@@ -1746,7 +1793,7 @@ public final class ScreenshotService {
         return try body(service)
     }
     
-    var rawValue: screenshotr_client_t?
+    let rawValue: screenshotr_client_t?
     
     init(rawValue: screenshotr_client_t) {
         self.rawValue = rawValue
@@ -1797,7 +1844,6 @@ public final class ScreenshotService {
             return
         }
         screenshotr_client_free(rawValue)
-        self.rawValue = nil
     }
 }
 
@@ -1844,7 +1890,7 @@ public final class SyslogRelayClient {
         return result
     }
     
-    private var rawValue: syslog_relay_client_t?
+    private let rawValue: syslog_relay_client_t?
     
     init(rawValue: syslog_relay_client_t) {
         self.rawValue = rawValue
@@ -1921,7 +1967,6 @@ public final class SyslogRelayClient {
             return
         }
         syslog_relay_client_free(rawValue)
-        self.rawValue = nil
     }
 }
 
@@ -1994,6 +2039,79 @@ private func parseLog(message: String) -> SyslogMessageSink? {
     )
 }
 
+
+/// A representation of an app installed on a device
+public struct InstalledAppInfo {
+    public let rawValue: Plist
+    public let dict: [String: Plist]
+
+    public init(rawValue: Plist) {
+        self.rawValue = rawValue
+
+        let keyValues = rawValue.dictionary?.map { kv in
+            (kv.key, kv.value)
+        } ?? []
+
+        self.dict = Dictionary(keyValues, uniquingKeysWith: { $1 })
+
+    }
+}
+
+public extension InstalledAppInfo {
+    var CFBundleIdentifier: String? { dict["CFBundleIdentifier"]?.string }
+    var CFBundleDevelopmentRegion: String? { dict["CFBundleDevelopmentRegion"]?.string }
+    var CFBundleDisplayName: String? { dict["CFBundleDisplayName"]?.string }
+    var CFBundleExecutable: String? { dict["CFBundleExecutable"]?.string }
+    var CFBundleName: String? { dict["CFBundleName"]?.string }
+    var ApplicationType: String? { dict["ApplicationType"]?.string }
+    var CFBundleShortVersionString: String? { dict["CFBundleShortVersionString"]?.string }
+    var CFBundleVersion: String? { dict["CFBundleVersion"]?.string }
+
+    /// E.g.: `/private/var/containers/Bundle/Application/<UUID>/Music.app`
+    var Path: String? { dict["Path"]?.string }
+
+    /// E.g.: `Apple iPhone OS Application Signing` or `TestFlight Beta Distribution`
+    var SignerIdentity: String? { dict["SignerIdentity"]?.string }
+
+    var IsDemotedApp: Bool? { dict["IsDemotedApp"]?.bool }
+    var IsHostBackupEligible: Bool? { dict["IsHostBackupEligible"]?.bool }
+    var IsUpgradeable: Bool? { dict["IsUpgradeable"]?.bool }
+    var IsAppClip: Bool? { dict["IsAppClip"]?.bool }
+}
+
+/// UsageDescription keys
+public extension InstalledAppInfo {
+    var NSAppleEventsUsageDescription: String? { dict["NSAppleEventsUsageDescription"]?.string }
+    var NSBluetoothUsageDescription: String? { dict["NSBluetoothUsageDescription"]?.string }
+    var NSLocationAlwaysUsageDescription: String? { dict["NSLocationAlwaysUsageDescription"]?.string }
+    var NSVideoSubscriberAccountUsageDescription: String? { dict["NSVideoSubscriberAccountUsageDescription"]?.string }
+    var NSFocusStatusUsageDescription: String? { dict["NSFocusStatusUsageDescription"]?.string }
+    var NFCReaderUsageDescription: String? { dict["NFCReaderUsageDescription"]?.string }
+    var NSHomeKitUsageDescription: String? { dict["NSHomeKitUsageDescription"]?.string }
+    var NSRemindersUsageDescription: String? { dict["NSRemindersUsageDescription"]?.string }
+    var NSLocationTemporaryUsageDescriptionDictionary: String? { dict["NSLocationTemporaryUsageDescriptionDictionary"]?.string }
+    var NSSiriUsageDescription: String? { dict["NSSiriUsageDescription"]?.string }
+    var NSHealthShareUsageDescription: String? { dict["NSHealthShareUsageDescription"]?.string }
+    var NSHealthUpdateUsageDescription: String? { dict["NSHealthUpdateUsageDescription"]?.string }
+    var NSSpeechRecognitionUsageDescription: String? { dict["NSSpeechRecognitionUsageDescription"]?.string }
+    var NSLocationUsageDescription: String? { dict["NSLocationUsageDescription"]?.string }
+    var NSMotionUsageDescription: String? { dict["NSMotionUsageDescription"]?.string }
+    var NSLocalNetworkUsageDescription: String? { dict["NSLocalNetworkUsageDescription"]?.string }
+    var NSAppleMusicUsageDescription: String? { dict["NSAppleMusicUsageDescription"]?.string }
+    var NSLocationAlwaysAndWhenInUseUsageDescription: String? { dict["NSLocationAlwaysAndWhenInUseUsageDescription"]?.string }
+    var NSUserTrackingUsageDescription: String? { dict["NSUserTrackingUsageDescription"]?.string }
+    var NSBluetoothAlwaysUsageDescription: String? { dict["NSBluetoothAlwaysUsageDescription"]?.string }
+    var NSFaceIDUsageDescription: String? { dict["NSFaceIDUsageDescription"]?.string }
+    var NSBluetoothPeripheralUsageDescription: String? { dict["NSBluetoothPeripheralUsageDescription"]?.string }
+    var NSCalendarsUsageDescription: String? { dict["NSCalendarsUsageDescription"]?.string }
+    var NSContactsUsageDescription: String? { dict["NSContactsUsageDescription"]?.string }
+    var NSMicrophoneUsageDescription: String? { dict["NSMicrophoneUsageDescription"]?.string }
+    var NSPhotoLibraryAddUsageDescription: String? { dict["NSPhotoLibraryAddUsageDescription"]?.string }
+    var NSPhotoLibraryUsageDescription: String? { dict["NSPhotoLibraryUsageDescription"]?.string }
+    var NSCameraUsageDescription: String? { dict["NSCameraUsageDescription"]?.string }
+    var NSLocationWhenInUseUsageDescription: String? { dict["NSLocationWhenInUseUsageDescription"]?.string }
+}
+
 private extension UInt32 {
     /// Shim for importing various uint32/int32 on Windows vs. others
     init(coercing value: Int32) {
@@ -2017,3 +2135,4 @@ private extension Int32 {
         self.init(value)
     }
 }
+
