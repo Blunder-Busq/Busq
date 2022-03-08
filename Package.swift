@@ -79,7 +79,7 @@ let package = Package(
                 .define("HAVE_STRNDUP"),
                 .headerSearchPath("src", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
                 .headerSearchPath("libcnary/include", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
-                .headerSearchPath(".\\libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
+                //.headerSearchPath(".\\libcnary\\include", .when(platforms: [.windows])), // needed to avoid error: “invalid header search path '\'; header search path should not be outside the package root”
             ],
             swiftSettings: [
             ],
@@ -206,7 +206,7 @@ let package = Package(
                 .define("HAVE_ASPRINTF"),
                 .headerSearchPath(".", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
                 .headerSearchPath("include/libimobiledevice", .when(platforms: [.macOS, .iOS, .linux, .android, .tvOS, .watchOS, .macCatalyst])),
-                .headerSearchPath(".\\include\\libimobiledevice", .when(platforms: [.windows])),
+                //.headerSearchPath(".\\include\\libimobiledevice", .when(platforms: [.windows])),
             ],
             swiftSettings: [
             ],
