@@ -49,7 +49,7 @@
 #define ECONNREFUSED 107
 #endif
 
-#include <unistd.h>
+//#include <unistd.h>
 #include <signal.h>
 
 #ifdef WIN32
