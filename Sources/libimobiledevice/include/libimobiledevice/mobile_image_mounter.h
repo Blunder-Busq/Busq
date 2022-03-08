@@ -54,7 +54,7 @@ typedef SSIZE_T ssize_t;
 
 #ifndef WIN32 // busq: “mobile_image_mounter.h:56:17: error: function cannot return function type 'int (void *, size_t, void *)' (aka 'int (void *, unsigned long long, void *)')”
 /** callback for image upload */
-typedef ssize_t (*mobile_image_mounter_upload_cb_t) (void* buffer, size_t length, void *user_data);
+//typedef ssize_t (*mobile_image_mounter_upload_cb_t) (void* buffer, size_t length, void *user_data);
 #endif
 
 
