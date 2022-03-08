@@ -945,7 +945,7 @@ public final class InstallationProxy {
     }
 
     /// List archived applications. This function runs synchronously.
-    public func lookupArchives(options: Plist) throws -> Plist {
+    public func lookupArchives(options: Plist = Plist(dictionary: [:])) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
@@ -1104,6 +1104,14 @@ public extension InstallationProxy {
         let appsPlists = try browse(options: opts)
         return appsPlists.array?.map(InstalledAppInfo.init) ?? []
     }
+
+    /// Returns the list of archives
+    @available(*, deprecated, message: "seems to always return ERROR: lookup_archives returned -42")
+    func getArchivesList() throws -> [InstalledAppInfo] {
+        let archivesPlist = try lookupArchives()
+        return archivesPlist.array?.map(InstalledAppInfo.init) ?? []
+    }
+
 }
 
 /// Manage device preferences, start services, pairing and activation.
