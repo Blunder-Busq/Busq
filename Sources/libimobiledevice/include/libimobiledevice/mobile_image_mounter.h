@@ -117,6 +117,7 @@ mobile_image_mounter_error_t mobile_image_mounter_free(mobile_image_mounter_clie
  */
 mobile_image_mounter_error_t mobile_image_mounter_lookup_image(mobile_image_mounter_client_t client, const char *image_type, plist_t *result);
 
+#ifndef WIN32
 /**
  * Uploads an image with an optional signature to the device.
  *
@@ -134,8 +135,7 @@ mobile_image_mounter_error_t mobile_image_mounter_lookup_image(mobile_image_moun
  * @return MOBILE_IMAGE_MOUNTER_E_SUCCESS on succes, or a
  *    MOBILE_IMAGE_MOUNTER_E_* error code otherwise.
  */
-#ifndef WIN32
-mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata);
+//mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata);
 #endif
 
 /**

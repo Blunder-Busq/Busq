@@ -185,84 +185,84 @@ static mobile_image_mounter_error_t process_result(plist_t result, const char *e
 
 #ifndef WIN32
 
-LIBIMOBILEDEVICE_API mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata)
-{
-	if (!client || !image_type || (image_size == 0) || !upload_cb) {
-		return MOBILE_IMAGE_MOUNTER_E_INVALID_ARG;
-	}
-	mobile_image_mounter_lock(client);
-	plist_t result = NULL;
-
-	plist_t dict = plist_new_dict();
-	plist_dict_set_item(dict, "Command", plist_new_string("ReceiveBytes"));
-	if (signature && signature_size != 0)
-		plist_dict_set_item(dict, "ImageSignature", plist_new_data(signature, signature_size));
-	plist_dict_set_item(dict, "ImageSize", plist_new_uint(image_size));
-	plist_dict_set_item(dict, "ImageType", plist_new_string(image_type));
-
-	mobile_image_mounter_error_t res = mobile_image_mounter_error(property_list_service_send_xml_plist(client->parent, dict));
-	plist_free(dict);
-
-	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
-		debug_info("Error sending XML plist to device!");
-		goto leave_unlock;
-	}
-
-	res = mobile_image_mounter_error(property_list_service_receive_plist(client->parent, &result));
-	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
-		debug_info("Error receiving response from device!");
-		goto leave_unlock;
-	}
-	res = process_result(result, "ReceiveBytesAck");
-	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
-		goto leave_unlock;
-	}
-
-	size_t tx = 0;
-	size_t bufsize = 65536;
-	unsigned char *buf = (unsigned char*)malloc(bufsize);
-	if (!buf) {
-		debug_info("Out of memory");
-		res = MOBILE_IMAGE_MOUNTER_E_UNKNOWN_ERROR;
-		goto leave_unlock;
-	}
-	debug_info("uploading image (%d bytes)", (int)image_size);
-	while (tx < image_size) {
-		size_t remaining = image_size - tx;
-		size_t amount = (remaining < bufsize) ? remaining : bufsize;
-		ssize_t r = upload_cb(buf, amount, userdata);
-		if (r < 0) {
-			debug_info("upload_cb returned %d", (int)r);
-			break;
-		}
-		uint32_t sent = 0;
-		if (service_send(client->parent->parent, (const char*)buf, (uint32_t)r, &sent) != SERVICE_E_SUCCESS) {
-			debug_info("service_send failed");
-			break;
-		}
-		tx += r;
-	}
-	free(buf);
-	if (tx < image_size) {
-		debug_info("Error: failed to upload image");
-		goto leave_unlock;
-	}
-	debug_info("image uploaded");
-
-	res = mobile_image_mounter_error(property_list_service_receive_plist(client->parent, &result));
-	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
-		debug_info("Error receiving response from device!");
-		goto leave_unlock;
-	}
-	res = process_result(result, "Complete");
-
-leave_unlock:
-	mobile_image_mounter_unlock(client);
-	if (result)
-		plist_free(result);
-	return res;
-
-}
+//LIBIMOBILEDEVICE_API mobile_image_mounter_error_t mobile_image_mounter_upload_image(mobile_image_mounter_client_t client, const char *image_type, size_t image_size, const char *signature, uint16_t signature_size, mobile_image_mounter_upload_cb_t upload_cb, void* userdata)
+//{
+//	if (!client || !image_type || (image_size == 0) || !upload_cb) {
+//		return MOBILE_IMAGE_MOUNTER_E_INVALID_ARG;
+//	}
+//	mobile_image_mounter_lock(client);
+//	plist_t result = NULL;
+//
+//	plist_t dict = plist_new_dict();
+//	plist_dict_set_item(dict, "Command", plist_new_string("ReceiveBytes"));
+//	if (signature && signature_size != 0)
+//		plist_dict_set_item(dict, "ImageSignature", plist_new_data(signature, signature_size));
+//	plist_dict_set_item(dict, "ImageSize", plist_new_uint(image_size));
+//	plist_dict_set_item(dict, "ImageType", plist_new_string(image_type));
+//
+//	mobile_image_mounter_error_t res = mobile_image_mounter_error(property_list_service_send_xml_plist(client->parent, dict));
+//	plist_free(dict);
+//
+//	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
+//		debug_info("Error sending XML plist to device!");
+//		goto leave_unlock;
+//	}
+//
+//	res = mobile_image_mounter_error(property_list_service_receive_plist(client->parent, &result));
+//	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
+//		debug_info("Error receiving response from device!");
+//		goto leave_unlock;
+//	}
+//	res = process_result(result, "ReceiveBytesAck");
+//	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
+//		goto leave_unlock;
+//	}
+//
+//	size_t tx = 0;
+//	size_t bufsize = 65536;
+//	unsigned char *buf = (unsigned char*)malloc(bufsize);
+//	if (!buf) {
+//		debug_info("Out of memory");
+//		res = MOBILE_IMAGE_MOUNTER_E_UNKNOWN_ERROR;
+//		goto leave_unlock;
+//	}
+//	debug_info("uploading image (%d bytes)", (int)image_size);
+//	while (tx < image_size) {
+//		size_t remaining = image_size - tx;
+//		size_t amount = (remaining < bufsize) ? remaining : bufsize;
+//		ssize_t r = upload_cb(buf, amount, userdata);
+//		if (r < 0) {
+//			debug_info("upload_cb returned %d", (int)r);
+//			break;
+//		}
+//		uint32_t sent = 0;
+//		if (service_send(client->parent->parent, (const char*)buf, (uint32_t)r, &sent) != SERVICE_E_SUCCESS) {
+//			debug_info("service_send failed");
+//			break;
+//		}
+//		tx += r;
+//	}
+//	free(buf);
+//	if (tx < image_size) {
+//		debug_info("Error: failed to upload image");
+//		goto leave_unlock;
+//	}
+//	debug_info("image uploaded");
+//
+//	res = mobile_image_mounter_error(property_list_service_receive_plist(client->parent, &result));
+//	if (res != MOBILE_IMAGE_MOUNTER_E_SUCCESS) {
+//		debug_info("Error receiving response from device!");
+//		goto leave_unlock;
+//	}
+//	res = process_result(result, "Complete");
+//
+//leave_unlock:
+//	mobile_image_mounter_unlock(client);
+//	if (result)
+//		plist_free(result);
+//	return res;
+//
+//}
 #endif
 
 LIBIMOBILEDEVICE_API mobile_image_mounter_error_t mobile_image_mounter_mount_image(mobile_image_mounter_client_t client, const char *image_path, const char *signature, uint16_t signature_size, const char *image_type, plist_t *result)
