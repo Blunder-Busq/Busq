@@ -185,7 +185,6 @@ let package = Package(
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
-                //.headerSearchPath("include"),
             ]
         ),
         .target(
@@ -223,7 +222,7 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                .headerSearchPath(".", .when(platforms: Platform.nonwindows)),
+                //.headerSearchPath(".", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("include\(pathsep)libimobiledevice"),
             ]
         ),
