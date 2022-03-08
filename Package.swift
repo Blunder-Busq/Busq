@@ -164,8 +164,6 @@ let package = Package(
                 "include/Makefile.am",
             ],
             cSettings: [
-                //.headerSearchPath("src"),
-                //.headerSearchPath("libcnary/include"),
                 .define("HAVE_STRNDUP"),
                 .define("HAVE_STPNCPY"),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
@@ -205,12 +203,8 @@ let package = Package(
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF"),
                 .define("HAVE_ASPRINTF"),
-                //.define("MBEDTLS_MD_C"),
-                //.define("STRIP_DEBUG_CODE"),
-                //.headerSearchPath("common"),
-                .headerSearchPath("."),
+                .headerSearchPath("common/.."),
                 .headerSearchPath("include/libimobiledevice"),
-                //.headerSearchPath("common"),
             ],
             swiftSettings: [
             ],
