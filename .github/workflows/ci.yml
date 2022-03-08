@@ -36,6 +36,6 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Run Tests
-        run: xcrun swift test
+        run: swift test
 
 
