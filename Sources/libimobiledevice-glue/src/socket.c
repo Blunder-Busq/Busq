@@ -28,9 +28,9 @@
 #include <string.h>
 #ifndef WIN32
 #include <unistd.h>
+#include <sys/time.h>
 #endif
 #include <errno.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #ifdef WIN32
 #include <winsock2.h>
