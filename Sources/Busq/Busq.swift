@@ -1,11 +1,35 @@
 import Foundation
 import libimobiledevice
 
-private let dateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "MMM dd HH:mm:ss"
-    return formatter
-}()
+public enum ApplicationType: String {
+    case system = "System"
+    case user = "User"
+    case any = "Any"
+    case `internal` = "Internal"
+}
+
+/// Services available on iOS devices
+public enum AppleServiceIdentifier: String {
+    case afc = "com.apple.afc"
+    case debugserver = "com.apple.debugserver"
+    case diagnosticsRelay = "com.apple.diagnostics_relay"
+    case fileRelay = "com.apple.mobile.file_relay"
+    case syslogRelay = "com.apple.syslog_relay"
+    case heartbeat = "com.apple.mobile.heartbeat"
+    case houseArrest = "com.apple.mobile.house_arrest"
+    case installationProxy = "com.apple.mobile.installation_proxy"
+    case misagent = "com.apple.misagent"
+    case mobileImageMounter = "com.apple.mobile.mobile_image_mounter"
+    case mobileActivationd = "com.apple.mobileactivationd"
+    case mobileBackup = "com.apple.mobilebackup"
+    case mobileBackup2 = "com.apple.mobilebackup2"
+    case mobileSync = "com.apple.mobileSync"
+    case notificationProxy = "com.apple.mobile.notification_proxy"
+    case preboard = "com.apple.preboard_service_v2"
+    case springboar = "com.apple.springboardservices"
+    case screenshot = "com.apple.screenshotr"
+    case webInspector = "com.apple.webinspector"
+}
 
 class Wrapper<T> {
     let value: T
@@ -240,8 +264,7 @@ private class InternalNativeDeviceConnection: NSObject, StreamDelegate {
     }
 }
 
-
-public struct DeviceConnection {
+public final class DeviceConnection {
     var rawValue: idevice_connection_t?
 
     init(rawValue: idevice_connection_t) {
@@ -321,7 +344,7 @@ public struct DeviceConnection {
     }
 
     /// Disconnect from the device and clean up the connection structure.
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -364,7 +387,8 @@ public enum MobileDeviceError: Int32, Error {
     }
 }
 
-public struct Device {
+/// A connection to a device.
+public final class Device {
     var rawValue: idevice_t? = nil
 
     /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available (USBMUX devices only).
@@ -435,7 +459,7 @@ public struct Device {
     }
 
     /// Cleans up an idevice structure, then frees the structure itself.
-    public mutating func free() {
+    func dealloc() {
         if let rawValue = self.rawValue {
             idevice_free(rawValue)
             self.rawValue = nil
@@ -580,11 +604,6 @@ public enum LockdownError: Error {
     }
 }
 
-
-
-
-
-
 public enum InstallationProxyError: Int32, Error {
     case invalidArgument = -1
     case plistError = -2
@@ -661,14 +680,6 @@ public struct InstallationProxyStatusError {
     public let code: UInt64
 }
 
-public enum ApplicationType: String {
-    case system = "System"
-    case user = "User"
-    case any = "Any"
-    case `internal` = "Internal"
-}
-
-
 public enum InstallationProxyClientOptionsKey {
     case skipUninstall(Bool)
     case applicationSinf(Plist)
@@ -680,7 +691,7 @@ public enum InstallationProxyClientOptionsKey {
 
 
 
-public struct InstallationProxyOptions {
+public final class InstallationProxyOptions {
     var rawValue: plist_t?
 
     /// Creates a new `client_options` plist.
@@ -722,7 +733,7 @@ public struct InstallationProxyOptions {
     }
 
     /// Frees `client_options` plist.
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -731,7 +742,8 @@ public struct InstallationProxyOptions {
     }
 }
 
-public struct InstallationProxy {
+/// Manage applications on a device
+public final class InstallationProxy {
     /// Starts a new `installation_proxy` service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, action: (InstallationProxy) throws -> T) throws -> T {
         guard let device = device.rawValue else {
@@ -746,10 +758,10 @@ public struct InstallationProxy {
             throw InstallationProxyError.unknown
         }
 
-        var proxy = InstallationProxy(rawValue: client)
-        defer { proxy.free() }
-
-        return try action(InstallationProxy(rawValue: client))
+        let proxy = InstallationProxy(rawValue: client)
+        return try withExtendedLifetime(proxy) { proxy in
+            try action(InstallationProxy(rawValue: client))
+        }
     }
 
     /// Gets the name from a command dictionary.
@@ -1138,7 +1150,7 @@ public struct InstallationProxy {
     }
 
     /// Disconnects an `installation_proxy` client from the device and frees up the `installation_proxy` client data.
-    public mutating func free() {
+    func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1149,8 +1161,8 @@ public struct InstallationProxy {
 }
 
 
-
-public struct LockdownService {
+/// Manage device preferences, start services, pairing and activation.
+public final class LockdownService {
     var rawValue: lockdownd_service_descriptor_t?
 
     init(rawValue: lockdownd_service_descriptor_t) {
@@ -1158,7 +1170,7 @@ public struct LockdownService {
     }
 
     /// Frees memory of a service descriptor as returned by `lockdownd_start_service()`
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1167,10 +1179,13 @@ public struct LockdownService {
     }
 }
 
-public struct LockdownClient {
+/// Manage device preferences, start services, pairing and activation.
+public final class LockdownClient {
     var rawValue: lockdownd_client_t?
 
     /// Creates a new lockdownd client for the device and starts initial handshake. The handshake consists out of `query_type`, `validate_pair`, `pair` and `start_session` calls. It uses the internal pairing record management.
+    ///
+    ///  This function does not pair with the device or start a session. This has to be done manually by the caller after the client is created. The device disconnects automatically if the lockdown connection idles for more than 10 seconds. Make sure to call `lockdownd_client_free()` as soon as the connection is no longer needed.
     public init(device: Device, withHandshake: Bool, name: String = UUID().uuidString) throws {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
@@ -1217,8 +1232,7 @@ public struct LockdownClient {
 
     /// Requests to start a service and perform the closure.
     public func startService<T>(identifier: String, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
-        var service = try getService(identifier: identifier, withEscroBag: withEscroBag)
-        defer { service.free() }
+        let service = try getService(identifier: identifier, withEscroBag: withEscroBag)
         return try body(service)
     }
 
@@ -1323,7 +1337,7 @@ public struct LockdownClient {
     }
 
     /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
-    public mutating func free() {
+    public func dealloc() {
         guard let lockdown = self.rawValue else {
             return
         }
@@ -1333,27 +1347,6 @@ public struct LockdownClient {
 }
 
 
-public enum AppleServiceIdentifier: String {
-    case afc = "com.apple.afc"
-    case debugserver = "com.apple.debugserver"
-    case diagnosticsRelay = "com.apple.diagnostics_relay"
-    case fileRelay = "com.apple.mobile.file_relay"
-    case syslogRelay = "com.apple.syslog_relay"
-    case heartbeat = "com.apple.mobile.heartbeat"
-    case houseArrest = "com.apple.mobile.house_arrest"
-    case installationProxy = "com.apple.mobile.installation_proxy"
-    case misagent = "com.apple.misagent"
-    case mobileImageMounter = "com.apple.mobile.mobile_image_mounter"
-    case mobileActivationd = "com.apple.mobileactivationd"
-    case mobileBackup = "com.apple.mobilebackup"
-    case mobileBackup2 = "com.apple.mobilebackup2"
-    case mobileSync = "com.apple.mobileSync"
-    case notificationProxy = "com.apple.mobile.notification_proxy"
-    case preboard = "com.apple.preboard_service_v2"
-    case springboar = "com.apple.springboardservices"
-    case screenshot = "com.apple.screenshotr"
-    case webInspector = "com.apple.webinspector"
-}
 
 
 public enum DebugServerError: Int32, Error {
@@ -1367,7 +1360,7 @@ public enum DebugServerError: Int32, Error {
     case deallocatedCommand = 101
 }
 
-public struct DebugServerCommand {
+public final class DebugServerCommand {
     var rawValue: debugserver_command_t?
     
     init(rawValue: debugserver_command_t) {
@@ -1394,7 +1387,7 @@ public struct DebugServerCommand {
     }
 
     /// Frees memory of command object.
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1403,7 +1396,8 @@ public struct DebugServerCommand {
     }
 }
 
-public struct DebugServer {
+/// Communicate with debugserver on the device.
+public final class DebugServer {
     /// Starts a new debugserver service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, body: (DebugServer) throws -> T) throws -> T {
         guard let device = device.rawValue else {
@@ -1419,9 +1413,7 @@ public struct DebugServer {
             guard let client = pclient else {
                 throw DebugServerError.unknown
             }
-            var server = DebugServer(rawValue: client)
-            defer { server.free() }
-            
+            let server = DebugServer(rawValue: client)
             return try body(server)
         })
     }
@@ -1618,7 +1610,7 @@ public struct DebugServer {
     }
 
     /// Disconnects a debugserver client from the device and frees up the debugserver client data.
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1669,7 +1661,8 @@ public enum FileRelayRequestSource: String {
     case systemConfiguration = "SystemConfiguration"
 }
 
-public struct FileRelayClient {
+/// Retrieve compressed CPIO archives.
+public final class FileRelayClient {
     /// Starts a new `file_relay` service on the specified device and connects to it.
     public static func start<T>(device: Device, label: String, body: (FileRelayClient) throws -> T) throws -> T {
         guard let device = device.rawValue else {
@@ -1684,9 +1677,8 @@ public struct FileRelayClient {
         guard let pointer = pclient else {
             throw FileRelayError.unknown
         }
-        var client = FileRelayClient(rawValue: pointer)
+        let client = FileRelayClient(rawValue: pointer)
         let result = try body(client)
-        try client.free()
         return result
     }
     
@@ -1726,7 +1718,7 @@ public struct FileRelayClient {
         }
         buffer[sources.count] = nil
         
-        var connection = DeviceConnection()
+        let connection = DeviceConnection()
         let rawError: file_relay_error_t
         if let timeout = timeout {
             rawError = file_relay_request_sources_timeout(rawValue, buffer.baseAddress, &connection.rawValue, timeout)
@@ -1743,7 +1735,7 @@ public struct FileRelayClient {
     }
 
     /// Disconnects a `file_relay` client from the device and frees up the `file_relay` client data.
-    public mutating func free() throws {
+    public func dealloc() throws {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1802,7 +1794,7 @@ public enum ScreenshotError: Int32, Error {
 }
 
 
-public struct ScreenshotService {
+public final class ScreenshotService {
     /// Starts a new screenshotr service on the specified device and connects to it.
     static func start<T>(device: Device, label: String, body: (ScreenshotService) throws -> T) throws -> T {
         guard let device = device.rawValue else {
@@ -1819,8 +1811,7 @@ public struct ScreenshotService {
             throw ScreenshotError.unknown
         }
         
-        var service = ScreenshotService(rawValue: screenshot)
-        defer { service.free() }
+        let service = ScreenshotService(rawValue: screenshot)
         return try body(service)
     }
     
@@ -1870,7 +1861,7 @@ public struct ScreenshotService {
         return Data(buffer: buffer)
     }
     
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1881,20 +1872,6 @@ public struct ScreenshotService {
 
 
 
-extension String {
-    func unsafeMutablePointer() -> UnsafeMutablePointer<Int8>? {
-        let cString = utf8CString
-        let buffer = UnsafeMutableBufferPointer<Int8>.allocate(capacity: cString.count)
-        _ = buffer.initialize(from: cString)
-        
-        return buffer.baseAddress
-    }
-    
-    func unsafePointer() -> UnsafePointer<Int8>? {
-        return UnsafePointer<Int8>(unsafeMutablePointer())
-    }
-}
-
 public enum SyslogRelayError: Int32, Error {
     case invalidArgument = -1
     case muxError = -2
@@ -1904,7 +1881,7 @@ public enum SyslogRelayError: Int32, Error {
     case unknown = -256
 }
 
-public struct SyslogReceivedData: CustomStringConvertible {
+public struct SyslogMessageSink: CustomStringConvertible {
     public fileprivate(set) var message: String
     public let date: Date
     public let name: String
@@ -1915,7 +1892,8 @@ public struct SyslogReceivedData: CustomStringConvertible {
     }
 }
 
-public struct SyslogRelayClient {
+/// Capture the syslog output from a device.
+public final class SyslogRelayClient {
     /// Starts a new `syslog_relay` service on the specified device and connects to it.
     public static func startService<T>(device: Device, label: String, body: (SyslogRelayClient) throws -> T) throws -> T {
         guard let device = device.rawValue else {
@@ -1930,9 +1908,8 @@ public struct SyslogRelayClient {
         guard let pointer = pclient else {
             throw SyslogRelayError.unknown
         }
-        var client = SyslogRelayClient(rawValue: pointer)
+        let client = SyslogRelayClient(rawValue: pointer)
         let result = try body(client)
-        client.free()
         return result
     }
     
@@ -2008,7 +1985,7 @@ public struct SyslogRelayClient {
     }
 
     /// Disconnects a `syslog_relay` client from the device and frees up the `syslog_relay` client data.
-    public mutating func free() {
+    public func dealloc() {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -2019,9 +1996,9 @@ public struct SyslogRelayClient {
 
 public extension SyslogRelayClient {
     /// Starts capturing the syslog of the device using a callback.
-    func startCaptureMessage(callback: @escaping (SyslogReceivedData) -> Void) throws -> Disposable {
+    func startCaptureMessage(callback: @escaping (SyslogMessageSink) -> Void) throws -> Disposable {
         var buffer: [Int8] = []
-        var previousMessage: SyslogReceivedData?
+        var previousMessage: SyslogMessageSink?
         return try startCapture { (character) in
             buffer.append(character)
             guard character == 10 else {
@@ -2030,7 +2007,7 @@ public extension SyslogRelayClient {
             
             let lineString = String(cString: buffer + [0])
             buffer = []
-            guard let data = tryParseMessage(message: lineString) else {
+            guard let data = parseLog(message: lineString) else {
                 previousMessage?.message += lineString
                 return
             }
@@ -2044,8 +2021,29 @@ public extension SyslogRelayClient {
     }
 }
 
+private extension String {
+    func unsafeMutablePointer() -> UnsafeMutablePointer<Int8>? {
+        let cString = utf8CString
+        let buffer = UnsafeMutableBufferPointer<Int8>.allocate(capacity: cString.count)
+        _ = buffer.initialize(from: cString)
 
-private func tryParseMessage(message: String) -> SyslogReceivedData? {
+        return buffer.baseAddress
+    }
+
+    func unsafePointer() -> UnsafePointer<Int8>? {
+        return UnsafePointer<Int8>(unsafeMutablePointer())
+    }
+}
+
+
+private let dateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "MMM dd HH:mm:ss"
+    return formatter
+}()
+
+
+private func parseLog(message: String) -> SyslogMessageSink? {
     let data = message.split(separator: " ")
     guard data.count > 5 else {
         return nil
@@ -2057,7 +2055,7 @@ private func tryParseMessage(message: String) -> SyslogReceivedData? {
     let name = data[3]
     let processInfo = data[4]
 
-    return SyslogReceivedData(
+    return SyslogMessageSink(
         message: String(data[5...].joined(separator: " ")),
         date: date,
         name: String(name),

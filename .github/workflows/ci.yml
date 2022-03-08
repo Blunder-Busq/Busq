@@ -10,7 +10,7 @@ on:
     - cron: '0 0,12 * * *'
 
 jobs:
-  ci:
+  ci-macos:
     runs-on: macos-latest
     env:
       DEVELOPER_DIR: /Applications/Xcode_13.2.1.app/Contents/Developer
@@ -19,9 +19,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Test macOS
+      - name: Run Tests
         run: xcrun swift test
  
       - name: Test iOS
         run: xcodebuild test -configuration Debug -scheme "Busq" -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 13"
+
+  ci-linux:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Get swift version
+        run: swift --version 
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Run Tests
+        run: xcrun swift test
+
 

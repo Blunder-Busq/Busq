@@ -9,7 +9,17 @@ class BusqTests: XCTestCase {
     override class func tearDown() {
         //MobileDevice.debug = false
     }
-    
+
+    func testDeviceConnectionPerformance() throws {
+        measure {
+            do {
+                try testDeviceConnection()
+            } catch {
+                XCTFail("\(error)")
+            }
+        }
+    }
+
     func testDeviceConnection() throws {
         let deviceInfos = try MobileDevice.getDeviceListExtended()
 
@@ -25,12 +35,12 @@ class BusqTests: XCTestCase {
             print(" - query:", try lfc.getQueryType()) // “com.apple.mobile.lockdown”
 
             // start the "com.apple.mobile.installation_proxy" service
-            var service = try lfc.getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: false)
-            defer { service.free() }
+            let service = try lfc.getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: false)
 
             let proxy = try InstallationProxy(device: device, service: service)
             print("created proxy:", proxy)
 
+            // TODO: use ApplicationType
             let opts = Plist(dictionary: [
                 "ApplicationType": Plist(string: "Any")
                 //"ApplicationType": Plist(string: "System")
