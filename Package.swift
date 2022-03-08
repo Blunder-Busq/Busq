@@ -97,7 +97,7 @@ let package = Package(
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_STRNDUP"),
-                .headerSearchPath("src"),
+                //.headerSearchPath("src"),
                 .headerSearchPath("libcnary\(pathsep)include"),
             ]
         ),
