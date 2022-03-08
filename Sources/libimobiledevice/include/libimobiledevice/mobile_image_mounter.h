@@ -48,6 +48,7 @@ typedef struct mobile_image_mounter_client_private mobile_image_mounter_client_p
 typedef mobile_image_mounter_client_private *mobile_image_mounter_client_t; /**< The client handle. */
 
 #ifdef WIN32
+#include <windows.h>
 typedef SSIZE_T ssize_t;
 #endif
 
