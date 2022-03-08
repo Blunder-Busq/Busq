@@ -96,7 +96,7 @@ let package = Package(
             ],
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
-                .define("HAVE_STRNDUP"),
+                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_ASPRINTF", .when(platforms: Platform.nonwindows)),
                 .headerSearchPath("src"),
@@ -152,8 +152,8 @@ let package = Package(
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
                 .define("HAVE_GETIFADDRS", .when(platforms: Platform.nonwindows)),
-                .define("HAVE_STRNDUP"),
-                .define("HAVE_STPNCPY"),
+                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
+                .define("HAVE_STPNCPY", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_ASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("MBEDTLS_PSA_ACCEL_ECC_BRAINPOOL_P_R1_256"),
@@ -184,8 +184,8 @@ let package = Package(
             ],
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
-                .define("HAVE_STRNDUP"),
-                .define("HAVE_STPNCPY"),
+                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
+                .define("HAVE_STPNCPY", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_ASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("PACKAGE_STRING", to: "\"libusbmuxd 2.0.2\""),
@@ -222,7 +222,7 @@ let package = Package(
             ],
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
-                .define("HAVE_STRNDUP"),
+                .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_ASPRINTF", .when(platforms: Platform.nonwindows)),
