@@ -38,7 +38,8 @@
 #endif
 
 #ifdef WIN32
-#define LIBIMOBILEDEVICE_API __declspec( dllexport )
+#define LIBIMOBILEDEVICE_API
+// #define LIBIMOBILEDEVICE_API __declspec( dllexport ) // busq: “error: redeclaration of 'webinspector_receive_with_timeout' cannot add 'dllexport' attribute”
 #else
 #ifdef HAVE_FVISIBILITY
 #define LIBIMOBILEDEVICE_API __attribute__((visibility("default")))
