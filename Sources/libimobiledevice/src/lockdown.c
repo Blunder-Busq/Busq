@@ -32,7 +32,9 @@
 #define __USE_GNU 1
 #include <stdio.h>
 #include <ctype.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <plist/plist.h>
 #include <libimobiledevice-glue/utils.h>
 

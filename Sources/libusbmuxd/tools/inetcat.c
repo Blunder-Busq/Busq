@@ -33,7 +33,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <stddef.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <getopt.h>
 #ifdef WIN32

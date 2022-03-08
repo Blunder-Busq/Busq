@@ -26,7 +26,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <plist/plist.h>
 
 #include "installation_proxy.h"

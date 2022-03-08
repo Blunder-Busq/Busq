@@ -32,7 +32,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(disable:4996)

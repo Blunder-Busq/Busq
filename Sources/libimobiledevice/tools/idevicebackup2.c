@@ -31,7 +31,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <dirent.h>
 #include <libgen.h>
 #include <ctype.h>

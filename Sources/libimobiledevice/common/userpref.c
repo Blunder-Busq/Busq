@@ -34,8 +34,8 @@
 #endif
 #ifndef WIN32
 #include <pwd.h>
-#endif
 #include <unistd.h>
+#endif
 #include <usbmuxd.h>
 #if defined(HAVE_OPENSSL)
 #include <openssl/bn.h>

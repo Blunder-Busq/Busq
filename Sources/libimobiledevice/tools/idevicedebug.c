@@ -30,7 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <libgen.h>
 
 #ifdef WIN32

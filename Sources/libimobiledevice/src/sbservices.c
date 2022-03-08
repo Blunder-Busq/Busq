@@ -24,7 +24,9 @@
 #endif
 #include <string.h>
 #include <stdlib.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <plist/plist.h>
 
 #include "sbservices.h"

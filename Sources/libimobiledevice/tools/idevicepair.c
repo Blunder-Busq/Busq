@@ -31,11 +31,11 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <ctype.h>
-#include <unistd.h>
 #ifdef WIN32
 #include <windows.h>
 #include <conio.h>
 #else
+#include <unistd.h>
 #include <termios.h>
 #include <signal.h>
 #endif

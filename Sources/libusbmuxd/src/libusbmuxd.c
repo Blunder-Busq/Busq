@@ -58,7 +58,9 @@
 #define sleep(x) Sleep(x*1000)
 #endif
 #else
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #if defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME) && !defined(HAVE_PROGRAM_INVOCATION_SHORT_NAME_ERRNO_H)

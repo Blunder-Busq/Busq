@@ -26,7 +26,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/stat.h>

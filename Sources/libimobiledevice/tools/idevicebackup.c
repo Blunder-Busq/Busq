@@ -46,7 +46,9 @@
 #else
 #error No supported crypto library enabled
 #endif
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <ctype.h>
 #include <time.h>
 
