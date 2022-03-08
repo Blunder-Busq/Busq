@@ -226,6 +226,7 @@ int userpref_read_system_buid(char **system_buid)
  */
 userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 {
+#ifndef WIN32 // busq: DIR/dirent not on Windows
 	DIR *config_dir;
 	const char *config_path = NULL;
 	unsigned int found = 0;
@@ -241,8 +242,7 @@ userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 	*list = (char**)malloc(sizeof(char*));
 
 	config_path = userpref_get_config_dir();
-	config_dir = opendir(config_path);
-#ifndef WIN32 // busq: dirent not on Windows
+    config_dir = opendir(config_path);
 	if (config_dir) {
 		struct dirent *entry;
 		while ((entry = readdir(config_dir))) {
@@ -274,7 +274,6 @@ userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 		}
 		closedir(config_dir);
 	}
-#endif
 	(*list)[found] = NULL;
 
 	if (count) {
@@ -282,6 +281,9 @@ userpref_error_t userpref_get_paired_udids(char ***list, unsigned int *count)
 	}
 
 	return USERPREF_E_SUCCESS;
+#else // busq: WIN32
+    return USERPREF_E_UNKNOWN_ERROR;
+#endif
 }
 
 /**
