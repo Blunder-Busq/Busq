@@ -13,7 +13,7 @@ class BusqTests: XCTestCase {
     func testDeviceConnectionPerformance() throws {
         measure {
             do {
-                try testDeviceConnection()
+                try listApps()
             } catch {
                 XCTFail("\(error)")
             }
@@ -21,7 +21,14 @@ class BusqTests: XCTestCase {
     }
 
     func testDeviceConnection() throws {
-        let deviceInfos = try MobileDevice.getDeviceListExtended()
+        try listApps()
+    }
+
+    func listApps(type appType: ApplicationType = .any) throws {
+        print("Getting device list…")
+
+        // this throws an error on Linux, but just returns an empty array on macOS
+        let deviceInfos = (try? MobileDevice.getDeviceListExtended()) ?? []
 
         print("Devices:", deviceInfos.count)
         for deviceInfo in deviceInfos {
@@ -40,15 +47,10 @@ class BusqTests: XCTestCase {
             let proxy = try InstallationProxy(device: device, service: service)
             print("created proxy:", proxy)
 
-            // TODO: use ApplicationType
             let opts = Plist(dictionary: [
-                "ApplicationType": Plist(string: "Any")
-                //"ApplicationType": Plist(string: "System")
-                //"ApplicationType": Plist(string: "User")
-                //"ApplicationType": Plist(string: "Internal")
+                "ApplicationType": Plist(string: appType.rawValue)
             ])
 
-            
             let appsPlists = try proxy.browse(options: opts)
             if let appPlists = appsPlists.array {
                 print("app list:", Array(appPlists).count)
@@ -60,6 +62,7 @@ class BusqTests: XCTestCase {
     }
 }
 
+/// A representation of an app installed on a device
 struct InstalledAppInfo : RawRepresentable {
     let rawValue: Plist
     let dict: [String: Plist]

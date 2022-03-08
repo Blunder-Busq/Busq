@@ -194,6 +194,7 @@ public struct DeviceLookupOptions: OptionSet {
     }
 }
 
+/// A device connection handle.
 public final class DeviceConnection {
     var rawValue: idevice_connection_t?
 
