@@ -28,7 +28,7 @@ class BusqTests: XCTestCase {
         print("Getting device list…")
 
         // this throws an error on Linux, but just returns an empty array on macOS
-        let deviceInfos = (try? MobileDevice.getDeviceListExtended()) ?? []
+        let deviceInfos = (try? DeviceManager.getDeviceListExtended()) ?? []
 
         print("Devices:", deviceInfos.count)
         for deviceInfo in deviceInfos {
@@ -40,6 +40,8 @@ class BusqTests: XCTestCase {
             print(" - lockdown client:", try lfc.getName()) // “Bob's iPhone”
             print(" - device UDID:", try lfc.getDeviceUDID())
             print(" - query:", try lfc.getQueryType()) // “com.apple.mobile.lockdown”
+
+            print(" - battery:", try lfc.getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint ?? 0) // e.g.: 100
 
             let proxy = try lfc.createInstallationProxy()
             

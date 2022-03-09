@@ -1,71 +1,7 @@
 import Foundation
 import libimobiledevice
 
-public enum ApplicationType: String {
-    case system = "System"
-    case user = "User"
-    case any = "Any"
-    case `internal` = "Internal"
-}
-
-/// Services available on iOS devices
-public enum AppleServiceIdentifier: String {
-    case afc = "com.apple.afc"
-    case debugserver = "com.apple.debugserver"
-    case diagnosticsRelay = "com.apple.diagnostics_relay"
-    case fileRelay = "com.apple.mobile.file_relay"
-    case syslogRelay = "com.apple.syslog_relay"
-    case heartbeat = "com.apple.mobile.heartbeat"
-    case houseArrest = "com.apple.mobile.house_arrest"
-    case installationProxy = "com.apple.mobile.installation_proxy"
-    case misagent = "com.apple.misagent"
-    case mobileImageMounter = "com.apple.mobile.mobile_image_mounter"
-    case mobileActivationd = "com.apple.mobileactivationd"
-    case mobileBackup = "com.apple.mobilebackup"
-    case mobileBackup2 = "com.apple.mobilebackup2"
-    case mobileSync = "com.apple.mobileSync"
-    case notificationProxy = "com.apple.mobile.notification_proxy"
-    case preboard = "com.apple.preboard_service_v2"
-    case springboar = "com.apple.springboardservices"
-    case screenshot = "com.apple.screenshotr"
-    case webInspector = "com.apple.webinspector"
-}
-
-class Wrapper<T> {
-    let value: T
-    init(value: T) {
-        self.value = value
-    }
-}
-
-public protocol Disposable {
-    func dispose()
-}
-
-struct Dispose: Disposable {
-    private let action: () -> Void
-
-    init(action: @escaping () -> Void) {
-        self.action = action
-    }
-
-    func dispose() {
-        self.action()
-    }
-}
-
-
-public enum ConnectionType: UInt32 {
-    case usbmuxd = 1
-    case network = 2
-}
-
-public struct DeviceInfo {
-    public let udid: String
-    public let connectionType: ConnectionType
-}
-
-public struct MobileDevice {
+public struct DeviceManager {
     public enum EventType: UInt32 {
         case add = 1
         case remove = 2
@@ -140,7 +76,7 @@ public struct MobileDevice {
     }
 
     /// Get a list of currently available devices
-    public static func getDeviceListExtended() throws -> [DeviceInfo] {
+    public static func getDeviceListExtended() throws -> [DeviceConnectionInfo] {
         var pdevices: UnsafeMutablePointer<idevice_info_t?>? = nil
         var count: Int32 = 0
         let rawError = idevice_get_device_list_extended(&pdevices, &count)
@@ -152,7 +88,7 @@ public struct MobileDevice {
         }
         defer { idevice_device_list_extended_free(devices) }
 
-        var list: [DeviceInfo] = []
+        var list: [DeviceConnectionInfo] = []
         for item in UnsafeMutableBufferPointer<idevice_info_t?>(start: devices, count: Int(count)) {
             guard let item = item else {
                 continue
@@ -162,11 +98,75 @@ public struct MobileDevice {
                 continue
             }
 
-            list.append(DeviceInfo(udid: udid, connectionType: connectionType))
+            list.append(DeviceConnectionInfo(udid: udid, connectionType: connectionType))
         }
 
         return list
     }
+}
+
+public enum ApplicationType: String {
+    case system = "System"
+    case user = "User"
+    case any = "Any"
+    case `internal` = "Internal"
+}
+
+/// Services available on iOS devices
+public enum AppleServiceIdentifier: String {
+    case afc = "com.apple.afc"
+    case debugserver = "com.apple.debugserver"
+    case diagnosticsRelay = "com.apple.diagnostics_relay"
+    case fileRelay = "com.apple.mobile.file_relay"
+    case syslogRelay = "com.apple.syslog_relay"
+    case heartbeat = "com.apple.mobile.heartbeat"
+    case houseArrest = "com.apple.mobile.house_arrest"
+    case installationProxy = "com.apple.mobile.installation_proxy"
+    case misagent = "com.apple.misagent"
+    case mobileImageMounter = "com.apple.mobile.mobile_image_mounter"
+    case mobileActivationd = "com.apple.mobileactivationd"
+    case mobileBackup = "com.apple.mobilebackup"
+    case mobileBackup2 = "com.apple.mobilebackup2"
+    case mobileSync = "com.apple.mobileSync"
+    case notificationProxy = "com.apple.mobile.notification_proxy"
+    case preboard = "com.apple.preboard_service_v2"
+    case springboard = "com.apple.springboardservices"
+    case screenshot = "com.apple.screenshotr"
+    case webInspector = "com.apple.webinspector"
+}
+
+class Wrapper<T> {
+    let value: T
+    init(value: T) {
+        self.value = value
+    }
+}
+
+public protocol Disposable {
+    func dispose()
+}
+
+struct Dispose: Disposable {
+    private let action: () -> Void
+
+    init(action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    func dispose() {
+        self.action()
+    }
+}
+
+
+public enum ConnectionType: UInt32 {
+    case usbmuxd = 1
+    case network = 2
+}
+
+public struct DeviceConnectionInfo {
+    public let udid: String
+    public let connectionType: ConnectionType
 }
 
 extension String {
@@ -316,6 +316,8 @@ public enum MobileDeviceError: Int32, Error {
         }
     }
 }
+
+// MARK: Device
 
 /// A connection to a device.
 public final class Device {
@@ -538,142 +540,8 @@ public enum LockdownError: Error {
     }
 }
 
-public enum InstallationProxyError: Int32, Error {
-    case invalidArgument = -1
-    case plistError = -2
-    case connectionFailed = -3
-    case operationInProgress = -4
-    case operationFailed = -5
-    case receiveTimeout = -6
-    case alreadyArchived = -7
-    case apiInternalError = -8
-    case applicationAlreadyInstalled = -9
-    case applicationMoveFailed = -10
-    case applicationSinfCaptureFailed = -11
-    case applicationSandboxFailed = -12
-    case applicationVerificationFailed = -13
-    case archiveDestructionFailed = -14
-    case bundleVerificationFailed = -15
-    case carrierBundleCopyFailed = -16
-    case carrierBundleDirectoryCreationFailed = -17
-    case carrierBundleMissingSupportedSims = -18
-    case commCenterNotificationFailed = -19
-    case containerCreationFailed = -20
-    case containerPownFailed = -21
-    case containerRemovableFailed = -22
-    case embeddedProfileInstallFailed = -23
-    case executableTwiddleFailed = -24
-    case existenceCheckFailed = -25
-    case installMapUpdateFailed = -26
-    case manifestCaptureFailed = -27
-    case mapGenerationFailed = -28
-    case missingBundleExecutable = -29
-    case missingBundleIdentifier = -30
-    case missingBundlePath = -31
-    case missingContainer = -32
-    case notificationFailed = -33
-    case packageExtractionFailed = -34
-    case packageInspectionFailed = -35
-    case packageMoveFailed = -36
-    case pathConversionFailed = -37
-    case restoreContainerFailed = -38
-    case seatbeltProfileRemovableFailed = -39
-    case stageCreationFailed = -40
-    case symlinkFailed = -41
-    case unknownCommand = -42
-    case itunesARtworkCaptureFailed = -43
-    case itunesMetadataCaptureFailed = -44
-    case deviceOSVersionTooLow = -45
-    case deviceFamilyNotSupported = -46
-    case packagePatchFailed = -47
-    case incorrectArchitecture = -48
-    case pluginCopyFailed = -49
-    case breadcrumbFailed = -50
-    case breadcrumbUnlockFailed = -51
-    case geojsonCaputreFailed = -52
-    case newsstandArtworkCaputureFailed = -53
-    case missingCommand = -54
-    case notEntitled = -55
-    case missingPackagePath = -56
-    case missingContainerPath = -57
-    case missingApplicationIdentifier = -58
-    case missingAttributeValue = -59
-    case lookupFailed = -60
-    case dictionaryCreationFailed = -61
-    case installProhibited = -62
-    case uninstallProhibited = -63
-    case missingBUndleVersion = -64
-    case unknown = -256
+// MARK: InstallationProxy
 
-    case deallocatedClient = 100
-}
-
-public struct InstallationProxyStatusError {
-    public let name: String?
-    public let description: String?
-    public let code: UInt64
-}
-
-public enum InstallationProxyClientOptionsKey {
-    case skipUninstall(Bool)
-    case applicationSinf(Plist)
-    case itunesMetadata(Plist)
-    case returnAttributes(Plist)
-    case applicationType(ApplicationType)
-}
-
-
-
-
-public final class InstallationProxyOptions {
-    let rawValue: plist_t?
-
-    /// Creates a new `client_options` plist.
-    init() {
-        self.rawValue = instproxy_client_options_new()
-    }
-
-    /// Set item identified by key in a `#PLIST_DICT` node. The previous item identified by key will be freed using `#plist_free`. If there is no item for the given key a new item will be inserted.
-    public func add(arguments: InstallationProxyClientOptionsKey...) {
-        guard let rawValue = self.rawValue else {
-            return
-        }
-
-        for argument in arguments {
-            switch argument {
-            case .skipUninstall(let bool):
-                plist_dict_set_item(rawValue, argument.key, plist_new_bool(bool ? 1 : 0))
-            case .applicationSinf(let plist),
-                 .itunesMetadata(let plist),
-                 .returnAttributes(let plist):
-                plist_dict_set_item(rawValue, argument.key, plist_copy(plist.rawValue))
-            case .applicationType(let type):
-                plist_dict_set_item(rawValue, argument.key, plist_new_string(type.rawValue))
-            }
-        }
-    }
-
-    /// Create a new root plist type `#PLIST_ARRAY`
-    public func setReturnAttributes(arguments: String...) {
-        guard let rawValue = self.rawValue else {
-            return
-        }
-        let returnAttributes = plist_new_array()
-        for argument in arguments {
-            plist_array_append_item(returnAttributes, plist_new_string(argument))
-        }
-
-        plist_dict_set_item(rawValue, "ReturnAttributes", returnAttributes)
-    }
-
-    /// Frees `client_options` plist.
-    public func dealloc() {
-        guard let rawValue = self.rawValue else {
-            return
-        }
-        instproxy_client_options_free(rawValue)
-    }
-}
 
 /// Manage applications on a device
 public final class InstallationProxy {
@@ -1105,14 +973,167 @@ public extension InstallationProxy {
         return appsPlists.array?.map(InstalledAppInfo.init) ?? []
     }
 
+    /// Returns the list of installed apps of the given type
+    @available(*, deprecated, message: "crashes in pointer release")
+    func getAppListPages(type appType: ApplicationType, callback: @escaping (InstalledAppInfo) -> ()) throws -> Disposable {
+        let opts = Plist(dictionary: [
+            "ApplicationType": Plist(string: appType.rawValue)
+        ])
+
+        return try browse(options: opts) { p1, p2 in
+            if let p1 = p1 {
+                callback(InstalledAppInfo(rawValue: p1))
+            }
+        }
+    }
+
     /// Returns the list of archives
     @available(*, deprecated, message: "seems to always return ERROR: lookup_archives returned -42")
     func getArchivesList() throws -> [InstalledAppInfo] {
         let archivesPlist = try lookupArchives()
         return archivesPlist.array?.map(InstalledAppInfo.init) ?? []
     }
-
 }
+
+public enum InstallationProxyError: Int32, Error {
+    case invalidArgument = -1
+    case plistError = -2
+    case connectionFailed = -3
+    case operationInProgress = -4
+    case operationFailed = -5
+    case receiveTimeout = -6
+    case alreadyArchived = -7
+    case apiInternalError = -8
+    case applicationAlreadyInstalled = -9
+    case applicationMoveFailed = -10
+    case applicationSinfCaptureFailed = -11
+    case applicationSandboxFailed = -12
+    case applicationVerificationFailed = -13
+    case archiveDestructionFailed = -14
+    case bundleVerificationFailed = -15
+    case carrierBundleCopyFailed = -16
+    case carrierBundleDirectoryCreationFailed = -17
+    case carrierBundleMissingSupportedSims = -18
+    case commCenterNotificationFailed = -19
+    case containerCreationFailed = -20
+    case containerPownFailed = -21
+    case containerRemovableFailed = -22
+    case embeddedProfileInstallFailed = -23
+    case executableTwiddleFailed = -24
+    case existenceCheckFailed = -25
+    case installMapUpdateFailed = -26
+    case manifestCaptureFailed = -27
+    case mapGenerationFailed = -28
+    case missingBundleExecutable = -29
+    case missingBundleIdentifier = -30
+    case missingBundlePath = -31
+    case missingContainer = -32
+    case notificationFailed = -33
+    case packageExtractionFailed = -34
+    case packageInspectionFailed = -35
+    case packageMoveFailed = -36
+    case pathConversionFailed = -37
+    case restoreContainerFailed = -38
+    case seatbeltProfileRemovableFailed = -39
+    case stageCreationFailed = -40
+    case symlinkFailed = -41
+    case unknownCommand = -42
+    case itunesARtworkCaptureFailed = -43
+    case itunesMetadataCaptureFailed = -44
+    case deviceOSVersionTooLow = -45
+    case deviceFamilyNotSupported = -46
+    case packagePatchFailed = -47
+    case incorrectArchitecture = -48
+    case pluginCopyFailed = -49
+    case breadcrumbFailed = -50
+    case breadcrumbUnlockFailed = -51
+    case geojsonCaputreFailed = -52
+    case newsstandArtworkCaputureFailed = -53
+    case missingCommand = -54
+    case notEntitled = -55
+    case missingPackagePath = -56
+    case missingContainerPath = -57
+    case missingApplicationIdentifier = -58
+    case missingAttributeValue = -59
+    case lookupFailed = -60
+    case dictionaryCreationFailed = -61
+    case installProhibited = -62
+    case uninstallProhibited = -63
+    case missingBUndleVersion = -64
+    case unknown = -256
+
+    case deallocatedClient = 100
+}
+
+public struct InstallationProxyStatusError {
+    public let name: String?
+    public let description: String?
+    public let code: UInt64
+}
+
+public enum InstallationProxyClientOptionsKey {
+    case skipUninstall(Bool)
+    case applicationSinf(Plist)
+    case itunesMetadata(Plist)
+    case returnAttributes(Plist)
+    case applicationType(ApplicationType)
+}
+
+
+
+
+public final class InstallationProxyOptions {
+    let rawValue: plist_t?
+
+    /// Creates a new `client_options` plist.
+    init() {
+        self.rawValue = instproxy_client_options_new()
+    }
+
+    /// Set item identified by key in a `#PLIST_DICT` node. The previous item identified by key will be freed using `#plist_free`. If there is no item for the given key a new item will be inserted.
+    public func add(arguments: InstallationProxyClientOptionsKey...) {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+
+        for argument in arguments {
+            switch argument {
+            case .skipUninstall(let bool):
+                plist_dict_set_item(rawValue, argument.key, plist_new_bool(bool ? 1 : 0))
+            case .applicationSinf(let plist),
+                 .itunesMetadata(let plist),
+                 .returnAttributes(let plist):
+                plist_dict_set_item(rawValue, argument.key, plist_copy(plist.rawValue))
+            case .applicationType(let type):
+                plist_dict_set_item(rawValue, argument.key, plist_new_string(type.rawValue))
+            }
+        }
+    }
+
+    /// Create a new root plist type `#PLIST_ARRAY`
+    public func setReturnAttributes(arguments: String...) {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        let returnAttributes = plist_new_array()
+        for argument in arguments {
+            plist_array_append_item(returnAttributes, plist_new_string(argument))
+        }
+
+        plist_dict_set_item(rawValue, "ReturnAttributes", returnAttributes)
+    }
+
+    /// Frees `client_options` plist.
+    public func dealloc() {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        instproxy_client_options_free(rawValue)
+    }
+}
+
+
+// MARK: LockdownService
 
 /// Manage device preferences, start services, pairing and activation.
 public final class LockdownService {
@@ -1137,6 +1158,10 @@ public extension Device {
         try LockdownClient(device: self, withHandshake: withHandshake, name: name)
     }
 }
+
+
+
+// MARK: LockdownClient
 
 /// Manage device preferences, start services, pairing and activation.
 public final class LockdownClient {
@@ -1215,10 +1240,53 @@ public final class LockdownClient {
 
         return String(cString: type)
     }
+}
 
+public extension LockdownClient {
+    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
+        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
+    }
+}
 
+/// Accessors for various properties.
+///
+/// `BasebandCertId: xxxxxxxxxx`
+/// `BasebandKeyHashInformation:`
+/// ` AKeyStatus: 2`
+/// ` SKeyHash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+/// ` SKeyStatus: 0`
+/// `BasebandSerialNumber: xxxxxxxx`
+/// `BasebandVersion: 7.80.04`
+/// `BoardId: 4`
+/// `BuildVersion: 16G77`
+/// `ChipID: 28672`
+/// `DeviceClass: iPhone`
+/// `DeviceColor: #e1e4e3`
+/// `DeviceName: iPhone 6 Plus`
+/// `DieID: xxxxxxxxxxxxxxx`
+/// `HardwareModel: N56AP`
+/// `HasSiDP: true`
+/// `PartitionType: GUID_partition_scheme`
+/// `ProductName: iPhone OS`
+/// `ProductType: iPhone7,1`
+/// `ProductVersion: 12.4`
+/// `ProductionSOC: true`
+/// `ProtocolVersion: 2`
+/// `TelephonyCapability: true`
+/// `UniqueChipID: xxxxxxxxxxxxxxx`
+/// `UniqueDeviceID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+/// `WiFiAddress: xx:xx:xx:xx:xx:xx`
+extension LockdownClient {
     public var deviceName: String? {
         get throws { try getValue(key: "DeviceName").string }
+    }
+
+    public var deviceClass: String? {
+        get throws { try getValue(key: "DeviceClass").string }
+    }
+
+    public var deviceColor: String? {
+        get throws { try getValue(key: "DeviceColor").string }
     }
 
     public var uniqueDeviceID: String? {
@@ -1235,6 +1303,11 @@ public final class LockdownClient {
 
     public var devicePublicKey: String? {
         get throws { try getValue(key: "DevicePublicKey").string }
+    }
+
+    /// A number from 0–100 indicating the estimated battery level
+    public var batteryLevel: UInt64? {
+        get throws { try getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint }
     }
 
     /// Retrieves a preferences plist using an optional domain and/or key name.
@@ -1326,14 +1399,6 @@ public final class LockdownClient {
         lockdownd_client_free(lockdown)
     }
 }
-
-public extension LockdownClient {
-    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
-        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
-    }
-}
-
-
 
 public enum DebugServerError: Int32, Error {
     case invalidArgument = -1
@@ -2002,6 +2067,120 @@ public extension SyslogRelayClient {
             previousMessage = data
             callback(message)
         }
+    }
+}
+
+public enum SpringboardError: Int32, Error {
+    case invalidArgument = -1
+    case plistError = -2
+    case connectionFailed = -3
+    case unknown = -256
+
+    case deallocatedService = 100
+}
+
+
+public extension LockdownClient {
+    /// Creates a new SpringboardServiceClient
+    func createSpringboardServiceClient(withEscroBag: Bool = true) throws -> SpringboardServiceClient {
+        try SpringboardServiceClient(device: device, service: getService(identifier: AppleServiceIdentifier.springboard.rawValue, withEscroBag: withEscroBag))
+    }
+}
+
+public struct SpringboardServiceClient {
+
+    static func startService<T>(lockdown: LockdownClient, label: String, body: (SpringboardServiceClient) throws -> T) throws -> T {
+        guard let lockdown = lockdown.rawValue else {
+            throw LockdownError.deallocated
+        }
+        var pclient: sbservices_client_t? = nil
+        let rawError = sbservices_client_start_service(lockdown, &pclient, label)
+        if let error = SpringboardError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let client = pclient else {
+            throw SpringboardError.unknown
+        }
+        var sbclient = SpringboardServiceClient(rawValue: client)
+        let result = try body(sbclient)
+        try sbclient.free()
+        return result
+    }
+
+    private var rawValue: sbservices_client_t?
+
+    init(rawValue: sbservices_client_t) {
+        self.rawValue = rawValue
+    }
+
+    init(device: Device, service: LockdownService) throws {
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+        guard let service = service.rawValue else {
+            throw LockdownError.notStartService
+        }
+
+        var client: sbservices_client_t? = nil
+        let rawError = sbservices_client_new(device, service, &client)
+        if let error = SpringboardError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard client != nil else {
+            throw SpringboardError.unknown
+        }
+        self.rawValue = client
+    }
+
+    public func getIconPNGData(bundleIdentifier: String) throws -> Data {
+        guard let rawValue = self.rawValue else {
+            throw SpringboardError.deallocatedService
+        }
+        var ppng: UnsafeMutablePointer<Int8>? = nil
+        var size: UInt64 = 0
+        let rawError = sbservices_get_icon_pngdata(rawValue, bundleIdentifier, &ppng, &size)
+        if let error = SpringboardError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let png = ppng else {
+            throw SpringboardError.unknown
+        }
+        let buffer = UnsafeMutableBufferPointer(start: png, count: Int(size))
+        defer { buffer.deallocate() }
+
+        return Data(buffer: buffer)
+    }
+
+    public func getHomeScreenWallpaperPNGData() throws -> Data {
+        guard let rawValue = self.rawValue else {
+            throw SpringboardError.deallocatedService
+        }
+        var ppng: UnsafeMutablePointer<Int8>? = nil
+        var size: UInt64 = 0
+        let rawError = sbservices_get_home_screen_wallpaper_pngdata(rawValue, &ppng, &size)
+        if let error = SpringboardError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let png = ppng else {
+            throw SpringboardError.unknown
+        }
+
+        let buffer = UnsafeMutableBufferPointer(start: png, count: Int(size))
+        defer { buffer.deallocate() }
+
+        return Data(buffer: buffer)
+    }
+
+    public mutating func free() throws {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+
+        let rawError = sbservices_client_free(rawValue)
+        if let error = SpringboardError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        self.rawValue = nil
     }
 }
 
