@@ -220,8 +220,16 @@ let package = Package(
                 "include/Makefile.am",
                 "common/Makefile.am",
             ],
+            sources: [
+                "src",
+                "common",
+                // HAVE_WIRELESS_PAIRING support
+                "3rd_party/ed25519",
+                "3rd_party/libsrp6a-sha512",
+            ],
             cSettings: [
                 .define("WIN32", .when(platforms: [.windows])),
+                // .define("HAVE_WIRELESS_PAIRING"),
                 .define("HAVE_MBEDTLS"),
                 .define("HAVE_STRNDUP", .when(platforms: Platform.nonwindows)),
                 .define("HAVE_VASPRINTF", .when(platforms: Platform.nonwindows)),

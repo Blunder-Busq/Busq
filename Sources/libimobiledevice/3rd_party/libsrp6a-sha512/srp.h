@@ -64,7 +64,7 @@ _TYPE( int ) SRP_get_secret_bits P((int modsize));
 
 typedef struct srp_st SRP;
 
-#if 0
+#if 1
 /* Server Lookup API */
 typedef struct srp_server_lu_st SRP_SERVER_LOOKUP;
 
