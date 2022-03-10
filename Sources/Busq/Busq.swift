@@ -642,10 +642,6 @@ public final class InstallationProxy {
         return InstallationProxyStatusError(name: name, description: description, code: pcode)
     }
 
-//    public static func statusGetCurrentList(status: Plist) {
-//        // TODO
-//    }
-
     /// Gets progress in percentage from a status if available.
     public static func statusGetPercentComplete(status: Plist) -> Int32 {
         var percent: Int32 = 0
@@ -1250,32 +1246,113 @@ public extension LockdownClient {
 
 /// Accessors for various properties.
 ///
-/// `BasebandCertId: xxxxxxxxxx`
-/// `BasebandKeyHashInformation:`
-/// ` AKeyStatus: 2`
-/// ` SKeyHash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-/// ` SKeyStatus: 0`
-/// `BasebandSerialNumber: xxxxxxxx`
-/// `BasebandVersion: 7.80.04`
-/// `BoardId: 4`
-/// `BuildVersion: 16G77`
-/// `ChipID: 28672`
-/// `DeviceClass: iPhone`
-/// `DeviceColor: #e1e4e3`
-/// `DeviceName: iPhone 6 Plus`
-/// `DieID: xxxxxxxxxxxxxxx`
-/// `HardwareModel: N56AP`
-/// `HasSiDP: true`
-/// `PartitionType: GUID_partition_scheme`
-/// `ProductName: iPhone OS`
-/// `ProductType: iPhone7,1`
-/// `ProductVersion: 12.4`
-/// `ProductionSOC: true`
-/// `ProtocolVersion: 2`
-/// `TelephonyCapability: true`
-/// `UniqueChipID: xxxxxxxxxxxxxxx`
-/// `UniqueDeviceID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-/// `WiFiAddress: xx:xx:xx:xx:xx:xx`
+/// ```
+/// BasebandCertId: xxxxxxxxxx
+/// BasebandKeyHashInformation:
+///  AKeyStatus: 2
+///  SKeyHash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+///  SKeyStatus: 0
+/// BasebandSerialNumber: xxxxxxxx
+/// BasebandVersion: 7.80.04
+/// BoardId: 4
+/// BuildVersion: 16G77
+/// ChipID: 28672
+/// DeviceClass: iPhone
+/// DeviceColor: #e1e4e3
+/// DeviceName: iPhone 6 Plus
+/// DieID: xxxxxxxxxxxxxxx
+/// HardwareModel: N56AP
+/// HasSiDP: true
+/// PartitionType: GUID_partition_scheme
+/// ProductName: iPhone OS
+/// ProductType: iPhone7,1
+/// ProductVersion: 12.4
+/// ProductionSOC: true
+/// ProtocolVersion: 2
+/// TelephonyCapability: true
+/// UniqueChipID: xxxxxxxxxxxxxxx
+/// UniqueDeviceID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+/// WiFiAddress: xx:xx:xx:xx:xx:xx
+/// ```
+///
+/// Additional possible keys:
+///
+/// ```
+/// ActiveWirelessTechnology
+/// AirplaneMode
+/// assistant
+/// BasebandCertId
+/// BasebandChipId
+/// BasebandPostponementStatus
+/// BasebandStatus
+/// BatteryCurrentCapacity
+/// BatteryIsCharging
+/// BluetoothAddress
+/// BoardId
+/// BootNonce
+/// BuildVersion
+/// CertificateProductionStatus
+/// CertificateSecurityMode
+/// ChipID
+/// CompassCalibrationDictionary
+/// CPUArchitecture
+/// DeviceClass
+/// DeviceColor
+/// DeviceEnclosureColor
+/// DeviceEnclosureRGBColor
+/// DeviceName
+/// DeviceRGBColor
+/// DeviceSupportsFaceTime
+/// DeviceVariant
+/// DeviceVariantGuess
+/// DiagData
+/// dictation
+/// DiskUsage
+/// EffectiveProductionStatus
+/// EffectiveProductionStatusAp
+/// EffectiveProductionStatusSEP
+/// EffectiveSecurityMode
+/// EffectiveSecurityModeAp
+/// EffectiveSecurityModeSEP
+/// FirmwarePreflightInfo
+/// FirmwareVersion
+/// FrontFacingCameraHFRCapability
+/// HardwarePlatform
+/// HasSEP
+/// HWModelStr
+/// Image4Supported
+/// InternalBuild
+/// InverseDeviceID
+/// ipad
+/// MixAndMatchPrevention
+/// MLBSerialNumber
+/// MobileSubscriberCountryCode
+/// MobileSubscriberNetworkCode
+/// ModelNumber
+/// PartitionType
+/// PasswordProtected
+/// ProductName
+/// ProductType
+/// ProductVersion
+/// ProximitySensorCalibrationDictionary
+/// RearFacingCameraHFRCapability
+/// RegionCode
+/// RegionInfo
+/// SDIOManufacturerTuple
+/// SDIOProductInfo
+/// SerialNumber
+/// SIMTrayStatus
+/// SoftwareBehavior
+/// SoftwareBundleVersion
+/// SupportedDeviceFamilies
+/// SupportedKeyboards
+/// telephony
+/// UniqueChipID
+/// UniqueDeviceID
+/// UserAssignedDeviceName
+/// wifi
+/// WifiVendor
+/// ```
 extension LockdownClient {
     public var deviceName: String? {
         get throws { try getValue(key: "DeviceName").string }
@@ -2087,7 +2164,7 @@ public extension LockdownClient {
     }
 }
 
-public struct SpringboardServiceClient {
+public final class SpringboardServiceClient {
 
     static func startService<T>(lockdown: LockdownClient, label: String, body: (SpringboardServiceClient) throws -> T) throws -> T {
         guard let lockdown = lockdown.rawValue else {
@@ -2101,9 +2178,8 @@ public struct SpringboardServiceClient {
         guard let client = pclient else {
             throw SpringboardError.unknown
         }
-        var sbclient = SpringboardServiceClient(rawValue: client)
+        let sbclient = SpringboardServiceClient(rawValue: client)
         let result = try body(sbclient)
-        try sbclient.free()
         return result
     }
 
@@ -2171,7 +2247,7 @@ public struct SpringboardServiceClient {
         return Data(buffer: buffer)
     }
 
-    public mutating func free() throws {
+    public func dealloc() throws {
         guard let rawValue = self.rawValue else {
             return
         }
