@@ -1,6 +1,7 @@
 import Foundation
 import libimobiledevice
 
+/// The entry point to the device list
 public struct DeviceManager {
     public enum EventType: UInt32 {
         case add = 1
@@ -105,6 +106,292 @@ public struct DeviceManager {
     }
 }
 
+
+// MARK: LockdownService
+
+/// Manage device preferences, start services, pairing and activation.
+public final class LockdownService {
+    let rawValue: lockdownd_service_descriptor_t?
+
+    init(rawValue: lockdownd_service_descriptor_t) {
+        self.rawValue = rawValue
+    }
+
+    /// Frees memory of a service descriptor as returned by `lockdownd_start_service()`
+    public func dealloc() {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        lockdownd_service_descriptor_free(rawValue)
+    }
+}
+
+public extension Device {
+    /// Creates a LockdownClient to manage device preferences, start services, pairing and activation.
+    func createLockdownClient(withHandshake: Bool = true, name: String = UUID().uuidString) throws -> LockdownClient {
+        try LockdownClient(device: self, withHandshake: withHandshake, name: name)
+    }
+}
+
+
+// MARK: LockdownClient
+
+/// Manage device preferences, start services, pairing and activation.
+public final class LockdownClient {
+    public let device: Device
+    let rawValue: lockdownd_client_t?
+
+    /// Creates a new lockdownd client for the device and starts initial handshake. The handshake consists out of `query_type`, `validate_pair`, `pair` and `start_session` calls. It uses the internal pairing record management.
+    ///
+    ///  This function does not pair with the device or start a session. This has to be done manually by the caller after the client is created. The device disconnects automatically if the lockdown connection idles for more than 10 seconds. Make sure to call `lockdownd_client_free()` as soon as the connection is no longer needed.
+    fileprivate init(device: Device, withHandshake: Bool, name: String) throws {
+        self.device = device
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+        let rawError: lockdownd_error_t
+        var client: lockdownd_client_t? = nil
+        if withHandshake {
+            rawError = lockdownd_client_new_with_handshake(device, &client, name)
+        } else {
+            rawError = lockdownd_client_new(device, &client, name)
+        }
+
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard client != nil else {
+            throw LockdownError.unknown
+        }
+        self.rawValue = client
+    }
+
+    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
+    public func getService(identifier: String, withEscroBag: Bool = false) throws -> LockdownService {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+
+        var pservice: lockdownd_service_descriptor_t? = nil
+        let lockdownError: lockdownd_error_t
+        if withEscroBag {
+            lockdownError = lockdownd_start_service_with_escrow_bag(lockdown, identifier, &pservice)
+        } else {
+            lockdownError = lockdownd_start_service(lockdown, identifier, &pservice)
+        }
+        if let error = LockdownError(rawValue: lockdownError.rawValue) {
+            throw error
+        }
+        guard let rawService = pservice else {
+            throw LockdownError.unknown
+        }
+
+        return LockdownService(rawValue: rawService)
+    }
+
+    /// Requests to start a service and perform the closure.
+    public func startService<T>(identifier: String, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
+        let service = try getService(identifier: identifier, withEscroBag: withEscroBag)
+        return try body(service)
+    }
+
+    /// Query the type of the service daemon. Depending on whether the device is queried in normal mode or restore mode, different types will be returned.
+    public func getQueryType() throws -> String {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+
+        var ptype: UnsafeMutablePointer<Int8>? = nil
+        let rawError = lockdownd_query_type(lockdown, &ptype)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let type = ptype else {
+            throw LockdownError.unknown
+        }
+        defer { type.deallocate() }
+
+        return String(cString: type)
+    }
+}
+
+public extension LockdownClient {
+    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
+    func getService(service: AppleServiceIdentifier, withEscroBag: Bool = false) throws -> LockdownService {
+        return try getService(identifier: service.rawValue, withEscroBag: withEscroBag)
+    }
+
+    /// Requests to start a service and perform the closure.
+    func startService<T>(service: AppleServiceIdentifier, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
+        return try startService(identifier: service.rawValue, withEscroBag: withEscroBag, body: body)
+    }
+}
+
+public extension LockdownClient {
+    /// Creates a new `SpringboardServiceClient`
+    func createSpringboardServiceClient(withEscroBag: Bool = true) throws -> SpringboardServiceClient {
+        try SpringboardServiceClient(device: device, service: getService(identifier: AppleServiceIdentifier.springboard.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `InstallationProxy`
+    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
+        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `FileConduit`
+    func createFileConduit(withEscroBag: Bool = true) throws -> FileConduit {
+        try FileConduit(device: device, service: getService(identifier: AppleServiceIdentifier.afc.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `HouseArrestClient`
+    func createHouseArrestClient(withEscroBag: Bool = true) throws -> HouseArrestClient {
+        try HouseArrestClient(device: device, service: getService(identifier: AppleServiceIdentifier.houseArrest.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `DebugServer`
+    func createDebugServer(withEscroBag: Bool = true) throws -> DebugServer {
+        try DebugServer(device: device, service: getService(identifier: AppleServiceIdentifier.debugserver.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `SyslogRelayClient`
+    func createSyslogRelayClient(withEscroBag: Bool = true) throws -> SyslogRelayClient {
+        try SyslogRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.syslogRelay.rawValue, withEscroBag: withEscroBag))
+    }
+
+    /// Creates a new `FileRelayClient`
+    func createFileRelayClient(withEscroBag: Bool = true) throws -> FileRelayClient {
+        try FileRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.fileRelay.rawValue, withEscroBag: withEscroBag))
+    }
+}
+
+
+/// Accessors for various properties.
+extension LockdownClient {
+    public var deviceName: String? {
+        get throws { try getValue(key: "DeviceName").string }
+    }
+
+    public var deviceClass: String? {
+        get throws { try getValue(key: "DeviceClass").string }
+    }
+
+    public var deviceColor: String? {
+        get throws { try getValue(key: "DeviceColor").string }
+    }
+
+    public var uniqueDeviceID: String? {
+        get throws { try getValue(key: "UniqueDeviceID").string }
+    }
+
+    public var productVersion: String? {
+        get throws { try getValue(key: "ProductVersion").string }
+    }
+
+    public var wiFiAddress: String? {
+        get throws { try getValue(key: "WiFiAddress").string }
+    }
+
+    public var devicePublicKey: String? {
+        get throws { try getValue(key: "DevicePublicKey").string }
+    }
+
+    /// A number from 0–100 indicating the estimated battery level
+    public var batteryLevel: UInt64? {
+        get throws { try getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint }
+    }
+
+    /// Retrieves a preferences plist using an optional domain and/or key name.
+    public func getValue(domain: String? = nil, key: String) throws -> Plist {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+
+        var pplist: plist_t? = nil
+        let rawError = lockdownd_get_value(lockdown, domain, key, &pplist)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let plist = pplist else {
+            throw LockdownError.unknown
+        }
+
+        return Plist(rawValue: plist)
+    }
+
+    /// Sets a preferences value using a plist and optional by domain and/or key name.
+    public func setValue(domain: String, key:String, value: Plist) throws {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+        guard let value = value.rawValue else {
+            throw LockdownError.unknown
+        }
+
+        let rawError = lockdownd_set_value(lockdown, domain, key, value)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    /// Removes a preference node by domain and/or key name.
+    public func removeValue(domain: String, key: String) throws {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+        let rawError = lockdownd_remove_value(lockdown, domain, key)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    /// Retrieves the name of the device from lockdownd set by the user.
+    public func getName() throws -> String {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+        var rawName: UnsafeMutablePointer<Int8>? = nil
+        let rawError = lockdownd_get_device_name(lockdown, &rawName)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        guard let pname = rawName else {
+            throw LockdownError.unknown
+        }
+        defer { pname.deallocate() }
+        return String(cString: pname)
+    }
+
+    /// Retrieves the name of the device from lockdownd set by the user.
+    public func getDeviceUDID() throws -> String {
+        guard let lockdown = self.rawValue else {
+            throw LockdownError.deallocated
+        }
+        var pudid: UnsafeMutablePointer<Int8>? = nil
+        let rawError = lockdownd_get_device_name(lockdown, &pudid)
+        if let error = LockdownError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        guard let udid = pudid else {
+            throw LockdownError.unknown
+        }
+        defer { udid.deallocate() }
+        return String(cString: udid)
+
+    }
+
+    /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
+    public func dealloc() {
+        guard let lockdown = self.rawValue else {
+            return
+        }
+        lockdownd_client_free(lockdown)
+    }
+}
+
+
+
 public enum ApplicationType: String {
     case system = "System"
     case user = "User"
@@ -135,30 +422,6 @@ public enum AppleServiceIdentifier: String {
     case webInspector = "com.apple.webinspector"
 }
 
-class Wrapper<T> {
-    let value: T
-    init(value: T) {
-        self.value = value
-    }
-}
-
-public protocol Disposable {
-    func dispose()
-}
-
-struct Dispose: Disposable {
-    private let action: () -> Void
-
-    init(action: @escaping () -> Void) {
-        self.action = action
-    }
-
-    func dispose() {
-        self.action()
-    }
-}
-
-
 public enum ConnectionType: UInt32 {
     case usbmuxd = 1
     case network = 2
@@ -169,18 +432,6 @@ public struct DeviceConnectionInfo {
     public let connectionType: ConnectionType
 }
 
-extension String {
-    init(errorNumber: Int32) {
-        guard let code = POSIXErrorCode(rawValue: errorNumber) else {
-            self = "unknown"
-            return
-        }
-
-        let error = POSIXError(code)
-
-        self = "\(error.code.rawValue  ): \(error.localizedDescription)"
-    }
-}
 
 public struct DeviceLookupOptions: OptionSet {
     public static let usbmux = DeviceLookupOptions(rawValue: 1 << 1)
@@ -407,7 +658,7 @@ public enum LockdownError: Error {
     case invalidArgument
     case invalidConfiguration
     case plistError
-    case paireingFailed
+    case pairingFailed
     case sslError
     case dictError
     case receiveTimeout
@@ -421,7 +672,7 @@ public enum LockdownError: Error {
     case remoteProhibited
     case immutableValue
     case passwordProtected
-    case userDeniedPaireing
+    case userDeniedPairing
     case pairingDialogResponsePending
     case missingHostID
     case invalidHostID
@@ -435,7 +686,7 @@ public enum LockdownError: Error {
     case missingPairRecord
     case savePairRecordFailed
     case invalidPairRecord
-    case invlidActivationRecord
+    case invalidActivationRecord
     case missingActivationRecord
     case serviceProhibited
     case escrowLocked
@@ -459,7 +710,7 @@ public enum LockdownError: Error {
         case -3:
             self = .plistError
         case -4:
-            self = .paireingFailed
+            self = .pairingFailed
         case -5:
             self = .sslError
         case -6:
@@ -487,7 +738,7 @@ public enum LockdownError: Error {
         case -17:
             self = .passwordProtected
         case -18:
-            self = .userDeniedPaireing
+            self = .userDeniedPairing
         case -19:
             self = .pairingDialogResponsePending
         case -20:
@@ -515,7 +766,7 @@ public enum LockdownError: Error {
         case -31:
             self = .invalidPairRecord
         case -32:
-            self = .invlidActivationRecord
+            self = .invalidActivationRecord
         case -33:
             self = .missingActivationRecord
         case -34:
@@ -539,6 +790,98 @@ public enum LockdownError: Error {
         }
     }
 }
+
+extension LockdownError : LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidArgument:
+            return NSLocalizedString("Invalid Argument", comment: "")
+        case .invalidConfiguration:
+            return NSLocalizedString("Invalid Configuration", comment: "")
+        case .plistError:
+            return NSLocalizedString("Property List Error", comment: "")
+        case .pairingFailed:
+            return NSLocalizedString("Pairing Failed", comment: "")
+        case .sslError:
+            return NSLocalizedString("SSL Error", comment: "")
+        case .dictError:
+            return NSLocalizedString("Dictionary Error", comment: "")
+        case .receiveTimeout:
+            return NSLocalizedString("Receive Timeout", comment: "")
+        case .muxError:
+            return NSLocalizedString("Multiplexing Error", comment: "")
+        case .noRunningSession:
+            return NSLocalizedString("No Running Session", comment: "")
+        case .invalidResponse:
+            return NSLocalizedString("Invalid Response", comment: "")
+        case .missingKey:
+            return NSLocalizedString("Missing Key", comment: "")
+        case .missingValue:
+            return NSLocalizedString("Missing Value", comment: "")
+        case .getProhibited:
+            return NSLocalizedString("Get Prohibited", comment: "")
+        case .setProhibited:
+            return NSLocalizedString("Set Prohibited", comment: "")
+        case .remoteProhibited:
+            return NSLocalizedString("Remote Prohibited", comment: "")
+        case .immutableValue:
+            return NSLocalizedString("Immutable Value", comment: "")
+        case .passwordProtected:
+            return NSLocalizedString("Password Protected", comment: "")
+        case .userDeniedPairing:
+            return NSLocalizedString("User Denied Pairing", comment: "")
+        case .pairingDialogResponsePending:
+            return NSLocalizedString("Pairing Dialog Response Pending", comment: "")
+        case .missingHostID:
+            return NSLocalizedString("Missing Host ID", comment: "")
+        case .invalidHostID:
+            return NSLocalizedString("Invalid Host ID", comment: "")
+        case .sessionActive:
+            return NSLocalizedString("Session Active", comment: "")
+        case .sessionInactive:
+            return NSLocalizedString("Session Inactive", comment: "")
+        case .missingSessionID:
+            return NSLocalizedString("Missing Session ID", comment: "")
+        case .invalidSessionID:
+            return NSLocalizedString("Invalid Session ID", comment: "")
+        case .missingService:
+            return NSLocalizedString("Missing Service", comment: "")
+        case .invalidService:
+            return NSLocalizedString("Invalid Service", comment: "")
+        case .serviceLimit:
+            return NSLocalizedString("Service Limit", comment: "")
+        case .missingPairRecord:
+            return NSLocalizedString("Missing Pair Record", comment: "")
+        case .savePairRecordFailed:
+            return NSLocalizedString("Save Pair Record Failed", comment: "")
+        case .invalidPairRecord:
+            return NSLocalizedString("Invalid Pair Record", comment: "")
+        case .invalidActivationRecord:
+            return NSLocalizedString("Invalid Activation Record", comment: "")
+        case .missingActivationRecord:
+            return NSLocalizedString("Missing Activation Record", comment: "")
+        case .serviceProhibited:
+            return NSLocalizedString("Service Prohibited", comment: "")
+        case .escrowLocked:
+            return NSLocalizedString("Escrow Locked", comment: "")
+        case .pairingProhibitedOverThisConnection:
+            return NSLocalizedString("Pairing Prohibited Over This Connection", comment: "")
+        case .fmipProtected:
+            return NSLocalizedString("FMIP Protected", comment: "")
+        case .mcProtected:
+            return NSLocalizedString("MC Protected", comment: "")
+        case .mcChallengeRequired:
+            return NSLocalizedString("MC Challenge Required", comment: "")
+        case .unknown:
+            return NSLocalizedString("Unknown", comment: "")
+        case .deallocated:
+            return NSLocalizedString("Deallocated", comment: "")
+        case .notStartService:
+            return NSLocalizedString("Service Not Started", comment: "")
+        }
+    }
+}
+
 
 // MARK: InstallationProxy
 
@@ -1005,6 +1348,25 @@ public extension InstallationProxy {
     }
 }
 
+extension InstallationProxyClientOptionsKey {
+    public var key: String {
+        switch self {
+        case .skipUninstall:
+            return "SkipUninstall"
+        case .applicationSinf:
+            return "ApplicationSINF"
+        case .itunesMetadata:
+            return "iTunesMetadata"
+        case .returnAttributes:
+            return "ReturnAttributes"
+        case .applicationType:
+            return "ApplicationType"
+        }
+    }
+}
+
+
+
 public enum InstallationProxyError: Int32, Error {
     case invalidArgument = -1
     case plistError = -2
@@ -1143,401 +1505,8 @@ public final class InstallationProxyOptions {
 }
 
 
-// MARK: LockdownService
+// MARK: DebugServer
 
-/// Manage device preferences, start services, pairing and activation.
-public final class LockdownService {
-    let rawValue: lockdownd_service_descriptor_t?
-
-    init(rawValue: lockdownd_service_descriptor_t) {
-        self.rawValue = rawValue
-    }
-
-    /// Frees memory of a service descriptor as returned by `lockdownd_start_service()`
-    public func dealloc() {
-        guard let rawValue = self.rawValue else {
-            return
-        }
-        lockdownd_service_descriptor_free(rawValue)
-    }
-}
-
-public extension Device {
-    /// Creates a LockdownClient to manage device preferences, start services, pairing and activation.
-    func createLockdownClient(withHandshake: Bool = true, name: String = UUID().uuidString) throws -> LockdownClient {
-        try LockdownClient(device: self, withHandshake: withHandshake, name: name)
-    }
-}
-
-
-
-// MARK: LockdownClient
-
-/// Manage device preferences, start services, pairing and activation.
-public final class LockdownClient {
-    public let device: Device
-    let rawValue: lockdownd_client_t?
-
-    /// Creates a new lockdownd client for the device and starts initial handshake. The handshake consists out of `query_type`, `validate_pair`, `pair` and `start_session` calls. It uses the internal pairing record management.
-    ///
-    ///  This function does not pair with the device or start a session. This has to be done manually by the caller after the client is created. The device disconnects automatically if the lockdown connection idles for more than 10 seconds. Make sure to call `lockdownd_client_free()` as soon as the connection is no longer needed.
-    fileprivate init(device: Device, withHandshake: Bool, name: String) throws {
-        self.device = device
-        guard let device = device.rawValue else {
-            throw MobileDeviceError.deallocatedDevice
-        }
-        let rawError: lockdownd_error_t
-        var client: lockdownd_client_t? = nil
-        if withHandshake {
-            rawError = lockdownd_client_new_with_handshake(device, &client, name)
-        } else {
-            rawError = lockdownd_client_new(device, &client, name)
-        }
-
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-        guard client != nil else {
-            throw LockdownError.unknown
-        }
-        self.rawValue = client
-    }
-
-    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
-    public func getService(identifier: String, withEscroBag: Bool = false) throws -> LockdownService {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-
-        var pservice: lockdownd_service_descriptor_t? = nil
-        let lockdownError: lockdownd_error_t
-        if withEscroBag {
-            lockdownError = lockdownd_start_service_with_escrow_bag(lockdown, identifier, &pservice)
-        } else {
-            lockdownError = lockdownd_start_service(lockdown, identifier, &pservice)
-        }
-        if let error = LockdownError(rawValue: lockdownError.rawValue) {
-            throw error
-        }
-        guard let rawService = pservice else {
-            throw LockdownError.unknown
-        }
-
-        return LockdownService(rawValue: rawService)
-    }
-
-    /// Requests to start a service and perform the closure.
-    public func startService<T>(identifier: String, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
-        let service = try getService(identifier: identifier, withEscroBag: withEscroBag)
-        return try body(service)
-    }
-
-    /// Query the type of the service daemon. Depending on whether the device is queried in normal mode or restore mode, different types will be returned.
-    public func getQueryType() throws -> String {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-
-        var ptype: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_query_type(lockdown, &ptype)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-        guard let type = ptype else {
-            throw LockdownError.unknown
-        }
-        defer { type.deallocate() }
-
-        return String(cString: type)
-    }
-}
-
-public extension LockdownClient {
-    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
-        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
-    }
-}
-
-/// Accessors for various properties.
-///
-/// ```
-/// BasebandCertId: xxxxxxxxxx
-/// BasebandKeyHashInformation:
-///  AKeyStatus: 2
-///  SKeyHash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-///  SKeyStatus: 0
-/// BasebandSerialNumber: xxxxxxxx
-/// BasebandVersion: 7.80.04
-/// BoardId: 4
-/// BuildVersion: 16G77
-/// ChipID: 28672
-/// DeviceClass: iPhone
-/// DeviceColor: #e1e4e3
-/// DeviceName: iPhone 6 Plus
-/// DieID: xxxxxxxxxxxxxxx
-/// HardwareModel: N56AP
-/// HasSiDP: true
-/// PartitionType: GUID_partition_scheme
-/// ProductName: iPhone OS
-/// ProductType: iPhone7,1
-/// ProductVersion: 12.4
-/// ProductionSOC: true
-/// ProtocolVersion: 2
-/// TelephonyCapability: true
-/// UniqueChipID: xxxxxxxxxxxxxxx
-/// UniqueDeviceID: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-/// WiFiAddress: xx:xx:xx:xx:xx:xx
-/// ```
-///
-/// Additional possible keys:
-///
-/// ```
-/// ActiveWirelessTechnology
-/// AirplaneMode
-/// assistant
-/// BasebandCertId
-/// BasebandChipId
-/// BasebandPostponementStatus
-/// BasebandStatus
-/// BatteryCurrentCapacity
-/// BatteryIsCharging
-/// BluetoothAddress
-/// BoardId
-/// BootNonce
-/// BuildVersion
-/// CertificateProductionStatus
-/// CertificateSecurityMode
-/// ChipID
-/// CompassCalibrationDictionary
-/// CPUArchitecture
-/// DeviceClass
-/// DeviceColor
-/// DeviceEnclosureColor
-/// DeviceEnclosureRGBColor
-/// DeviceName
-/// DeviceRGBColor
-/// DeviceSupportsFaceTime
-/// DeviceVariant
-/// DeviceVariantGuess
-/// DiagData
-/// dictation
-/// DiskUsage
-/// EffectiveProductionStatus
-/// EffectiveProductionStatusAp
-/// EffectiveProductionStatusSEP
-/// EffectiveSecurityMode
-/// EffectiveSecurityModeAp
-/// EffectiveSecurityModeSEP
-/// FirmwarePreflightInfo
-/// FirmwareVersion
-/// FrontFacingCameraHFRCapability
-/// HardwarePlatform
-/// HasSEP
-/// HWModelStr
-/// Image4Supported
-/// InternalBuild
-/// InverseDeviceID
-/// ipad
-/// MixAndMatchPrevention
-/// MLBSerialNumber
-/// MobileSubscriberCountryCode
-/// MobileSubscriberNetworkCode
-/// ModelNumber
-/// PartitionType
-/// PasswordProtected
-/// ProductName
-/// ProductType
-/// ProductVersion
-/// ProximitySensorCalibrationDictionary
-/// RearFacingCameraHFRCapability
-/// RegionCode
-/// RegionInfo
-/// SDIOManufacturerTuple
-/// SDIOProductInfo
-/// SerialNumber
-/// SIMTrayStatus
-/// SoftwareBehavior
-/// SoftwareBundleVersion
-/// SupportedDeviceFamilies
-/// SupportedKeyboards
-/// telephony
-/// UniqueChipID
-/// UniqueDeviceID
-/// UserAssignedDeviceName
-/// wifi
-/// WifiVendor
-/// ```
-extension LockdownClient {
-    public var deviceName: String? {
-        get throws { try getValue(key: "DeviceName").string }
-    }
-
-    public var deviceClass: String? {
-        get throws { try getValue(key: "DeviceClass").string }
-    }
-
-    public var deviceColor: String? {
-        get throws { try getValue(key: "DeviceColor").string }
-    }
-
-    public var uniqueDeviceID: String? {
-        get throws { try getValue(key: "UniqueDeviceID").string }
-    }
-
-    public var productVersion: String? {
-        get throws { try getValue(key: "ProductVersion").string }
-    }
-
-    public var wiFiAddress: String? {
-        get throws { try getValue(key: "WiFiAddress").string }
-    }
-
-    public var devicePublicKey: String? {
-        get throws { try getValue(key: "DevicePublicKey").string }
-    }
-
-    /// A number from 0–100 indicating the estimated battery level
-    public var batteryLevel: UInt64? {
-        get throws { try getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint }
-    }
-
-    /// Retrieves a preferences plist using an optional domain and/or key name.
-    public func getValue(domain: String? = nil, key: String) throws -> Plist {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-
-        var pplist: plist_t? = nil
-        let rawError = lockdownd_get_value(lockdown, domain, key, &pplist)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-        guard let plist = pplist else {
-            throw LockdownError.unknown
-        }
-
-        return Plist(rawValue: plist)
-    }
-
-    /// Sets a preferences value using a plist and optional by domain and/or key name.
-    public func setValue(domain: String, key:String, value: Plist) throws {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-        guard let value = value.rawValue else {
-            throw LockdownError.unknown
-        }
-
-        let rawError = lockdownd_set_value(lockdown, domain, key, value)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-    }
-
-    /// Removes a preference node by domain and/or key name.
-    public func removeValue(domain: String, key: String) throws {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-        let rawError = lockdownd_remove_value(lockdown, domain, key)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-    }
-
-    /// Retrieves the name of the device from lockdownd set by the user.
-    public func getName() throws -> String {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-        var rawName: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_get_device_name(lockdown, &rawName)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-
-        guard let pname = rawName else {
-            throw LockdownError.unknown
-        }
-        defer { pname.deallocate() }
-        return String(cString: pname)
-    }
-
-    /// Retrieves the name of the device from lockdownd set by the user.
-    public func getDeviceUDID() throws -> String {
-        guard let lockdown = self.rawValue else {
-            throw LockdownError.deallocated
-        }
-        var pudid: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_get_device_name(lockdown, &pudid)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
-
-        guard let udid = pudid else {
-            throw LockdownError.unknown
-        }
-        defer { udid.deallocate() }
-        return String(cString: udid)
-
-    }
-
-    /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
-    public func dealloc() {
-        guard let lockdown = self.rawValue else {
-            return
-        }
-        lockdownd_client_free(lockdown)
-    }
-}
-
-public enum DebugServerError: Int32, Error {
-    case invalidArgument = -1
-    case muxError = -2
-    case sslError = -3
-    case responseError = -4
-    case unknown = -256
-    
-    case deallocatedClient = 100
-    case deallocatedCommand = 101
-}
-
-public final class DebugServerCommand {
-    let rawValue: debugserver_command_t?
-    
-    init(rawValue: debugserver_command_t) {
-        self.rawValue = rawValue
-    }
-
-    /// Creates and initializes a new command object.
-    init(name: String, arguments: [String]) throws {
-        let buffer = UnsafeMutableBufferPointer<UnsafeMutablePointer<Int8>?>.allocate(capacity: arguments.count + 1)
-        defer { buffer.deallocate() }
-        for (i, argument) in arguments.enumerated() {
-            buffer[i] = argument.unsafeMutablePointer()
-        }
-
-        buffer[arguments.count] = nil
-        var cmd: debugserver_command_t?
-        let rawError = debugserver_command_new(name, Int32(arguments.count), buffer.baseAddress, &cmd)
-        buffer.forEach { $0?.deallocate() }
-        if let error = DebugServerError(rawValue: rawError.rawValue) {
-            throw error
-        }
-        self.rawValue = cmd
-        guard rawValue == nil else {
-            throw DebugServerError.unknown
-        }
-    }
-
-    /// Frees memory of command object.
-    public func dealloc() {
-        guard let rawValue = self.rawValue else {
-            return
-        }
-        debugserver_command_free(rawValue)
-    }
-}
 
 /// Communicate with debugserver on the device.
 public final class DebugServer {
@@ -1780,29 +1749,55 @@ extension DebugServer {
     }
 }
 
-
-public enum FileRelayError: Int32, Error {
+public enum DebugServerError: Int32, Error {
     case invalidArgument = -1
-    case plistError = -2
-    case muxError = -3
-    case invalidSource = -4
-    case stagingEmpty = -5
-    case permissionDenied = -6
+    case muxError = -2
+    case sslError = -3
+    case responseError = -4
     case unknown = -256
-    
+
     case deallocatedClient = 100
+    case deallocatedCommand = 101
 }
 
-public enum FileRelayRequestSource: String {
-    case appleSupport = "AppleSupport"
-    case network = "Network"
-    case vpn = "VPN"
-    case wifi = "Wifi"
-    case userDatabases = "UserDatabases"
-    case crashReporter = "CrashReporter"
-    case tmp = "tmp"
-    case systemConfiguration = "SystemConfiguration"
+public final class DebugServerCommand {
+    let rawValue: debugserver_command_t?
+
+    init(rawValue: debugserver_command_t) {
+        self.rawValue = rawValue
+    }
+
+    /// Creates and initializes a new command object.
+    init(name: String, arguments: [String]) throws {
+        let buffer = UnsafeMutableBufferPointer<UnsafeMutablePointer<Int8>?>.allocate(capacity: arguments.count + 1)
+        defer { buffer.deallocate() }
+        for (i, argument) in arguments.enumerated() {
+            buffer[i] = argument.unsafeMutablePointer()
+        }
+
+        buffer[arguments.count] = nil
+        var cmd: debugserver_command_t?
+        let rawError = debugserver_command_new(name, Int32(arguments.count), buffer.baseAddress, &cmd)
+        buffer.forEach { $0?.deallocate() }
+        if let error = DebugServerError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        self.rawValue = cmd
+        guard rawValue == nil else {
+            throw DebugServerError.unknown
+        }
+    }
+
+    /// Frees memory of command object.
+    public func dealloc() {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        debugserver_command_free(rawValue)
+    }
 }
+
+// MARK: FileRelayClient
 
 /// Retrieve compressed CPIO archives.
 public final class FileRelayClient {
@@ -1890,51 +1885,31 @@ public final class FileRelayClient {
 }
 
 
-extension InstallationProxyClientOptionsKey {
-    public var key: String {
-        switch self {
-        case .skipUninstall:
-            return "SkipUninstall"
-        case .applicationSinf:
-            return "ApplicationSINF"
-        case .itunesMetadata:
-            return "iTunesMetadata"
-        case .returnAttributes:
-            return "ReturnAttributes"
-        case .applicationType:
-            return "ApplicationType"
-        }
-    }
-}
-
-
-
-
-public extension LockdownClient {
-    /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
-    func getService(service: AppleServiceIdentifier, withEscroBag: Bool = false) throws -> LockdownService {
-        return try getService(identifier: service.rawValue, withEscroBag: withEscroBag)
-    }
-    
-    /// Requests to start a service and perform the closure.
-    func startService<T>(service: AppleServiceIdentifier, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
-        return try startService(identifier: service.rawValue, withEscroBag: withEscroBag, body: body)
-    }
-}
-
-
-public enum ScreenshotError: Int32, Error {
+public enum FileRelayError: Int32, Error {
     case invalidArgument = -1
     case plistError = -2
     case muxError = -3
-    case sslError = -4
-    case receiveTimeout = -5
-    case badVersion = -6
+    case invalidSource = -4
+    case stagingEmpty = -5
+    case permissionDenied = -6
     case unknown = -256
-    
-    case deallocatedService = 100
+
+    case deallocatedClient = 100
 }
 
+public enum FileRelayRequestSource: String {
+    case appleSupport = "AppleSupport"
+    case network = "Network"
+    case vpn = "VPN"
+    case wifi = "Wifi"
+    case userDatabases = "UserDatabases"
+    case crashReporter = "CrashReporter"
+    case tmp = "tmp"
+    case systemConfiguration = "SystemConfiguration"
+}
+
+
+// MARK: ScreenshotService
 
 public final class ScreenshotService {
     /// Starts a new screenshotr service on the specified device and connects to it.
@@ -2011,8 +1986,6 @@ public final class ScreenshotService {
     }
 }
 
-
-
 public enum SyslogRelayError: Int32, Error {
     case invalidArgument = -1
     case muxError = -2
@@ -2022,16 +1995,21 @@ public enum SyslogRelayError: Int32, Error {
     case unknown = -256
 }
 
-public struct SyslogMessageSink: CustomStringConvertible {
-    public fileprivate(set) var message: String
-    public let date: Date
-    public let name: String
-    public let processInfo: String
-    
-    public var description: String {
-        return "\(dateFormatter.string(from: date)) \(name) \(processInfo) \(message)"
-    }
+
+public enum ScreenshotError: Int32, Error {
+    case invalidArgument = -1
+    case plistError = -2
+    case muxError = -3
+    case sslError = -4
+    case receiveTimeout = -5
+    case badVersion = -6
+    case unknown = -256
+
+    case deallocatedService = 100
 }
+
+
+// MARK: SyslogRelay
 
 /// Capture the syslog output from a device.
 public final class SyslogRelayClient {
@@ -2161,22 +2139,20 @@ public extension SyslogRelayClient {
     }
 }
 
-public enum SpringboardError: Int32, Error {
-    case invalidArgument = -1
-    case plistError = -2
-    case connectionFailed = -3
-    case unknown = -256
 
-    case deallocatedService = 100
-}
+public struct SyslogMessageSink: CustomStringConvertible {
+    public fileprivate(set) var message: String
+    public let date: Date
+    public let name: String
+    public let processInfo: String
 
-
-public extension LockdownClient {
-    /// Creates a new SpringboardServiceClient
-    func createSpringboardServiceClient(withEscroBag: Bool = true) throws -> SpringboardServiceClient {
-        try SpringboardServiceClient(device: device, service: getService(identifier: AppleServiceIdentifier.springboard.rawValue, withEscroBag: withEscroBag))
+    public var description: String {
+        return "\(dateFormatter.string(from: date)) \(name) \(processInfo) \(message)"
     }
 }
+
+
+// MARK: SpringboardService
 
 public final class SpringboardServiceClient {
 
@@ -2274,6 +2250,492 @@ public final class SpringboardServiceClient {
     }
 }
 
+
+public enum SpringboardError: Int32, Error {
+    case invalidArgument = -1
+    case plistError = -2
+    case connectionFailed = -3
+    case unknown = -256
+
+    case deallocatedService = 100
+}
+
+
+// MARK: HouseArrest
+
+public final class HouseArrestClient {
+
+    /// Starts a new `house_arrest` service on the specified device and connects to it.
+    public static func startService<T>(device: Device, label: String, body: (HouseArrestClient) throws -> T) throws -> T {
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+
+        var pclient: house_arrest_client_t? = nil
+
+        let rawError = house_arrest_client_start_service(device, &pclient, label)
+        if let error = HouseArrestError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let pointer = pclient else {
+            throw HouseArrestError.unknown
+        }
+        let client = HouseArrestClient(rawValue: pointer)
+        let result = try body(client)
+        return result
+    }
+
+    public var rawValue: house_arrest_client_t?
+
+    init(rawValue: house_arrest_client_t) {
+        self.rawValue = rawValue
+    }
+
+    /// Connects to the `house_arrest` service on the specified device.
+    public init(device: Device, service: LockdownService) throws {
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+        guard let service = service.rawValue else {
+            throw LockdownError.notStartService
+        }
+
+        var client: house_arrest_client_t? = nil
+        let rawError = house_arrest_client_new(device, service, &client)
+        if let error = HouseArrestError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        self.rawValue = client
+    }
+
+    /// Sends a generic request to the connected `house_arrest` service.
+    public func sendRequest(dict: Plist) throws {
+        let rawError = house_arrest_send_request(rawValue, dict.rawValue)
+        if let error = HouseArrestError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    /// Send a command to the connected `house_arrest` service. Calls `house_arrest_send_request()` internally.
+    public func sendCommand(command: String, appid: String) throws {
+        let rawError = house_arrest_send_command(rawValue, command, appid)
+        if let error = HouseArrestError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    /// Retrieves the result of a previously sent `house_arrest_request_*` request.
+    public func getResult() throws -> Plist {
+        var presult: plist_t? = nil
+        let rawError = house_arrest_get_result(rawValue, &presult)
+        if let error = HouseArrestError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        guard let result = presult else {
+            throw HouseArrestError.unknown
+        }
+
+        return Plist(rawValue: result)
+    }
+
+    public func dealloc() {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        house_arrest_client_free(rawValue)
+        self.rawValue = nil
+    }
+}
+
+
+public enum HouseArrestError: Int32, Error {
+    case invalidArg = -1
+    case plistError = -2
+    case connFailed = -3
+    case invalidMode = -4
+    case unknown = -256
+}
+
+
+// MARK: FileConduit
+
+public final class FileConduit {
+
+    /// Starts a new `afc` service on the specified device and connects to it.
+    public static func startService<T>(device: Device, label: String, body: (FileConduit) throws -> T) throws -> T {
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+
+        var pclient: afc_client_t? = nil
+
+        let rawError = afc_client_start_service(device, &pclient, label)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        guard let pointer = pclient else {
+            throw FileConduitError.AFC_E_UNKNOWN_ERROR
+        }
+        let client = FileConduit(rawValue: pointer)
+        let result = try body(client)
+        return result
+    }
+
+    public var rawValue: afc_client_t?
+
+    init(rawValue: afc_client_t) {
+        self.rawValue = rawValue
+    }
+
+    /// Connects to the `afc` service on the specified device.
+    public init(device: Device, service: LockdownService) throws {
+        guard let device = device.rawValue else {
+            throw MobileDeviceError.deallocatedDevice
+        }
+        guard let service = service.rawValue else {
+            throw LockdownError.notStartService
+        }
+
+        var client: afc_client_t? = nil
+        let rawError = afc_client_new(device, service, &client)
+
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        self.rawValue = client
+    }
+
+    /// Connects to the `afc` service on the specified house arrest client.
+    public init(houseArrest: HouseArrestClient) throws {
+        var client: afc_client_t? = nil
+        let rawError = afc_client_new_from_house_arrest_client(houseArrest.rawValue, &client)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+        self.rawValue = client
+
+    }
+
+    public func getDeviceInfo() throws -> [String] {
+        var deviceInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
+        let rawError = afc_get_device_info(rawValue, &deviceInformation)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        defer { afc_dictionary_free(deviceInformation) }
+        let idList = String.array(point: deviceInformation)
+        return idList
+    }
+
+    public func readDirectory(path: String) throws -> [String] {
+        var directoryInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
+        let rawError = afc_read_directory(rawValue, path,  &directoryInformation)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        defer { afc_dictionary_free(directoryInformation) }
+
+        let idList = String.array(point: directoryInformation)
+        return idList
+
+    }
+
+    public func getFileInfo(path: String) throws -> [String] {
+        var fileInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
+        let rawError = afc_get_file_info(rawValue, path, &fileInformation)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        defer { afc_dictionary_free(fileInformation) }
+        let idList = String.array(point: fileInformation)
+        return idList
+    }
+
+    public func fileOpen(filename: String, fileMode: FileConduitFileMode) throws -> UInt64 {
+
+        var handle: UInt64 = 0
+
+        let rawError = afc_file_open(rawValue, filename, afc_file_mode_t(fileMode.rawValue), &handle)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        return handle
+    }
+
+
+    public func fileClose(handle: UInt64) throws {
+        let rawError = afc_file_close(rawValue, handle)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func fileLock(handle: UInt64, operation: FileConduitLockOp) throws {
+        let rawError = afc_file_lock(rawValue, handle, afc_lock_op_t(operation.rawValue))
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func fileRead(handle: UInt64) throws -> Data {
+        var data = Data()
+        let length: UInt32 = 10000
+        var result = try fileRead(handle: handle, length: length)
+        while result.1 > 0 {
+            data += result.0
+            result = try fileRead(handle: handle, length: length)
+        }
+
+        return data
+    }
+
+    public func fileRead(handle: UInt64, length: UInt32) throws -> (Data, UInt32) {
+
+        let pdata = UnsafeMutablePointer<Int8>.allocate(capacity: Int(length))
+        defer { pdata.deallocate() }
+
+        var bytesRead: UInt32 = 0
+
+        let rawError = afc_file_read(rawValue, handle, pdata, length, &bytesRead)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        return (Data(bytes: pdata, count: Int(bytesRead)), bytesRead)
+    }
+
+    public func fileWrite(handle: UInt64, data: Data) throws ->UInt32 {
+
+        return try data.withUnsafeBytes({ (pdata) -> UInt32 in
+
+            var bytesWritten: UInt32 = 0
+            let pdata = pdata.baseAddress?.bindMemory(to: Int8.self, capacity: data.count)
+            let rawError = afc_file_write(rawValue, handle, pdata, UInt32(data.count), &bytesWritten)
+
+            if let error = FileConduitError(rawValue: rawError.rawValue) {
+                throw error
+            }
+
+            return bytesWritten
+        })
+    }
+
+    public func fileWrite(handle: UInt64, fileURL: URL, progressHandler: ((Double) -> Void)?) throws {
+
+        let data = try Data(contentsOf: fileURL)
+        var total = data.count
+        var length = 102400
+        var index = 0
+
+        repeat{
+
+            if total < length { length = total }
+            total -= length
+
+            let subData = data[index..<(index + length)]
+            index = index + length
+            _ = try fileWrite(handle: handle, data: subData)
+            progressHandler?(Double(index) / Double(data.count))
+        } while total > 0
+    }
+
+    public func fileSeek(handle: UInt64, offset: Int64, whence: Int32) throws {
+        let rawError = afc_file_seek(rawValue, handle, offset, whence)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func fileTell(handle: UInt64) throws -> UInt64 {
+        var position: UInt64 = 0
+
+        let rawError = afc_file_tell(rawValue, handle, &position)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        return position
+    }
+
+    public func fileTruncate(handle: UInt64, newsize: UInt64) throws {
+        let rawError = afc_file_truncate(rawValue, handle, newsize)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func removeFile(path: String) throws {
+        let rawError = afc_remove_path(rawValue, path)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func renamePath(from: String, to: String) throws {
+        let rawError = afc_rename_path(rawValue, from, to)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func makeDirectory(path: String) throws {
+        let rawError = afc_make_directory(rawValue, path)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func truncate(path: String, newsize: UInt64) throws {
+        let rawError = afc_truncate(rawValue, path, newsize)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func makeLink(linkType: FileConduitLinkType, target: String, linkName: String) throws {
+        let rawError = afc_make_link(rawValue, afc_link_type_t(linkType.rawValue), target, linkName)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func setFileTime(path: String, date: Date) throws {
+        let rawError = afc_set_file_time(rawValue, path, UInt64(date.timeIntervalSinceReferenceDate))
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func removePathAndContents(path: String) throws {
+        let rawError = afc_remove_path_and_contents(rawValue, path)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+    }
+
+    public func getDeviceInfoKey(key: String) throws -> String? {
+        var pvalue: UnsafeMutablePointer<Int8>? = nil
+        let rawError = afc_get_device_info_key(rawValue, key, &pvalue)
+        if let error = FileConduitError(rawValue: rawError.rawValue) {
+            throw error
+        }
+
+        guard let value = pvalue else {
+            return nil
+        }
+        defer { value.deallocate() }
+        return String(cString: value)
+    }
+
+    public func dealloc() {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        afc_client_free(rawValue)
+        self.rawValue = nil
+    }
+}
+
+public enum FileConduitFileMode: UInt32 {
+    case rdOnly = 0x00000001
+    case rw = 0x00000002
+    case wrOnly = 0x00000003
+    case wr = 0x00000004
+    case append = 0x00000005
+    case rdAppend = 0x00000006
+}
+
+public enum FileConduitLinkType: UInt32 {
+    case hardLink = 1
+    case symLink = 2
+}
+
+public enum FileConduitLockOp: UInt32 {
+    case sh = 5
+    case ex = 6
+    case un = 12
+}
+
+
+public enum FileConduitError: Int32, Error {
+    // case AFC_E_SUCCESS               =  0 // not an error
+    case AFC_E_UNKNOWN_ERROR         =  1
+    case AFC_E_OP_HEADER_INVALID     =  2
+    case AFC_E_NO_RESOURCES          =  3
+    case AFC_E_READ_ERROR            =  4
+    case AFC_E_WRITE_ERROR           =  5
+    case AFC_E_UNKNOWN_PACKET_TYPE   =  6
+    case AFC_E_INVALID_ARG           =  7
+    case AFC_E_OBJECT_NOT_FOUND      =  8
+    case AFC_E_OBJECT_IS_DIR         =  9
+    case AFC_E_PERM_DENIED           = 10
+    case AFC_E_SERVICE_NOT_CONNECTED = 11
+    case AFC_E_OP_TIMEOUT            = 12
+    case AFC_E_TOO_MUCH_DATA         = 13
+    case AFC_E_END_OF_DATA           = 14
+    case AFC_E_OP_NOT_SUPPORTED      = 15
+    case AFC_E_OBJECT_EXISTS         = 16
+    case AFC_E_OBJECT_BUSY           = 17
+    case AFC_E_NO_SPACE_LEFT         = 18
+    case AFC_E_OP_WOULD_BLOCK        = 19
+    case AFC_E_IO_ERROR              = 20
+    case AFC_E_OP_INTERRUPTED        = 21
+    case AFC_E_OP_IN_PROGRESS        = 22
+    case AFC_E_INTERNAL_ERROR        = 23
+    case AFC_E_MUX_ERROR             = 30
+    case AFC_E_NO_MEM                = 31
+    case AFC_E_NOT_ENOUGH_DATA       = 32
+    case AFC_E_DIR_NOT_EMPTY         = 33
+    case AFC_E_FORCE_SIGNED_TYPE     = -1
+}
+
+
+
+// MARK: Miscellanea
+
+class Wrapper<T> {
+    let value: T
+    init(value: T) {
+        self.value = value
+    }
+}
+
+public protocol Disposable {
+    func dispose()
+}
+
+struct Dispose: Disposable {
+    private let action: () -> Void
+
+    init(action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    func dispose() {
+        self.action()
+    }
+}
+
+
+extension String {
+    init(errorNumber: Int32) {
+        guard let code = POSIXErrorCode(rawValue: errorNumber) else {
+            self = "unknown"
+            return
+        }
+
+        let error = POSIXError(code)
+
+        self = "\(error.code.rawValue  ): \(error.localizedDescription)"
+    }
+}
+
+
 private extension String {
     func unsafeMutablePointer() -> UnsafeMutablePointer<Int8>? {
         let cString = utf8CString
@@ -2285,6 +2747,20 @@ private extension String {
 
     func unsafePointer() -> UnsafePointer<Int8>? {
         return UnsafePointer<Int8>(unsafeMutablePointer())
+    }
+
+    static func array(point: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>?) -> [String] {
+        var count = 0
+        var p = point?[count]
+        while p != nil {
+            count += 1
+            p = point?[count]
+        }
+
+        let bufferPointer = UnsafeMutableBufferPointer<UnsafeMutablePointer<Int8>?>(start: point, count: count)
+        let list = bufferPointer.compactMap { $0 }.map { String(cString: $0) }
+
+        return list
     }
 }
 

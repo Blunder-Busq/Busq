@@ -10,21 +10,23 @@ class BusqTests: XCTestCase {
         //MobileDevice.debug = false
     }
 
-//    func testDeviceConnectionPerformance() throws {
-//        measure {
-//            do {
-//                try listApps()
-//            } catch {
-//                XCTFail("\(error)")
-//            }
-//        }
-//    }
+    func testDeviceConnectionPerformance() throws {
+        throw XCTSkip() // skipping for performace
 
-    func testDeviceConnection() throws {
-        try listApps()
+        measure {
+            do {
+                try deviceConnectionTest()
+            } catch {
+                XCTFail("\(error)")
+            }
+        }
     }
 
-    func listApps(type appType: ApplicationType = .any) throws {
+    func testDeviceConnection() throws {
+        try deviceConnectionTest()
+    }
+
+    func deviceConnectionTest() throws {
         print("Getting device list…")
 
         // this throws an error on Linux, but just returns an empty array on macOS
@@ -37,26 +39,76 @@ class BusqTests: XCTestCase {
             print(" - handle:", try device.getHandle())
 
             let lfc = try device.createLockdownClient()
-            print(" - lockdown client:", try lfc.getName()) // “Bob's iPhone”
-            print(" - device UDID:", try lfc.getDeviceUDID())
-            print(" - query:", try lfc.getQueryType()) // “com.apple.mobile.lockdown”
+            try testLockdownClient(lfc)
+            try testAppList(lfc)
 
-            print(" - battery:", try lfc.getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint ?? 0) // e.g.: 100
+            try testInstallationProxy(lfc)
+            try testFileConduit(lfc) // AFC_E_MUX_ERROR
+            try testFileRelayClient(lfc)
+            try testHouseArrestClient(lfc)
+            try testSyslogRelayClient(lfc)
+            try testSpringboardServiceClient(lfc)
+            // try testDebugServer(lfc) // seems to require manual start of the service
+        }
+    }
 
-            let proxy = try lfc.createInstallationProxy()
-            
-            print("created proxy:", proxy)
+    func testLockdownClient(_ lfc: LockdownClient) throws {
+        print(" - lockdown client:", try lfc.getName()) // “Bob's iPhone”
+        print(" - device UDID:", try lfc.getDeviceUDID())
+        print(" - query:", try lfc.getQueryType()) // “com.apple.mobile.lockdown”
 
-            let opts = Plist(dictionary: [
-                "ApplicationType": Plist(string: appType.rawValue)
-            ])
+        print(" - battery:", try lfc.getValue(domain: "com.apple.mobile.battery", key: "BatteryCurrentCapacity").uint ?? 0) // e.g.: 100
+    }
 
-            let appsPlists = try proxy.browse(options: opts)
-            if let appPlists = appsPlists.array {
-                print("app list:", Array(appPlists).count)
-                for appInfo in appPlists.map(InstalledAppInfo.init) {
-                    print(" - app:", appInfo.CFBundleIdentifier ?? "", "name:", appInfo.CFBundleDisplayName ?? "", "version:", appInfo.CFBundleShortVersionString ?? "") // , "keys:", appInfo.dict.keys.sorted())
-                }
+    func testInstallationProxy(_ lfc: LockdownClient) throws {
+        let client = try lfc.createInstallationProxy()
+        let _ = client
+    }
+
+    func testDebugServer(_ lfc: LockdownClient) throws {
+        let client = try lfc.createDebugServer()
+        let _ = client
+    }
+
+    func testFileConduit(_ lfc: LockdownClient) throws {
+        let client = try lfc.createFileConduit()
+        let _ = client
+    }
+
+    func testHouseArrestClient(_ lfc: LockdownClient) throws {
+        let client = try lfc.createHouseArrestClient()
+        let _ = client
+   }
+
+    func testFileRelayClient(_ lfc: LockdownClient) throws {
+        let client = try lfc.createFileRelayClient()
+        let _ = client
+    }
+
+    func testSyslogRelayClient(_ lfc: LockdownClient) throws {
+        let client = try lfc.createSyslogRelayClient()
+        let _ = client
+    }
+
+    func testSpringboardServiceClient(_ lfc: LockdownClient) throws {
+        let client = try lfc.createSpringboardServiceClient()
+        let _ = client
+    }
+
+    func testAppList(_ lfc: LockdownClient, type appType: ApplicationType = .any) throws {
+        let proxy = try lfc.createInstallationProxy()
+
+        print("created proxy:", proxy)
+
+        let opts = Plist(dictionary: [
+            "ApplicationType": Plist(string: appType.rawValue)
+        ])
+
+        let appsPlists = try proxy.browse(options: opts)
+        if let appPlists = appsPlists.array {
+            print("app list:", Array(appPlists).count)
+            for appInfo in appPlists.map(InstalledAppInfo.init) {
+                print(" - app:", appInfo.CFBundleIdentifier ?? "", "name:", appInfo.CFBundleDisplayName ?? "", "version:", appInfo.CFBundleShortVersionString ?? "") // , "keys:", appInfo.dict.keys.sorted())
             }
         }
     }
