@@ -222,8 +222,15 @@ class BusqTests: XCTestCase {
         } else {
             /// Recursively copies all the elements of the url over to the baseDir
             func copyFolder(at url: URL, to baseDir: String) throws {
+                let opts: FileManager.DirectoryEnumerationOptions
+                #if os(macOS) // these keys only available on macOS; this would be a problem on other platforms, since we rely on the behavior of producesRelativePathURLs to get the paths right
+                opts = [.includesDirectoriesPostOrder, .producesRelativePathURLs]
+                #else
+                opts = []
+                #endif
+
                 print("copy folder:", url.path, "to:", baseDir)
-                for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.producesRelativePathURLs]) {
+                for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: opts) {
                     let destPath = baseDir + "/" + path.relativePath
                     if try path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
                         print("  + creating folder:", destPath)
