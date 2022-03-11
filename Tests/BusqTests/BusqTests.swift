@@ -40,6 +40,8 @@ class BusqTests: XCTestCase {
              try testSpringboardServiceClient(lfc)
              try testHouseArrestClient(lfc)
              try testSyslogRelayClient(lfc)
+            // try testFileRelayClient(lfc) // muxError
+            // try testDebugServer(lfc) // seems to require manual start of the service
 
         }
     }
@@ -221,7 +223,7 @@ class BusqTests: XCTestCase {
             /// Recursively copies all the elements of the url over to the baseDir
             func copyFolder(at url: URL, to baseDir: String) throws {
                 print("copy folder:", url.path, "to:", baseDir)
-                for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.includesDirectoriesPostOrder, .producesRelativePathURLs]) {
+                for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [.producesRelativePathURLs]) {
                     let destPath = baseDir + "/" + path.relativePath
                     if try path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
                         print("  + creating folder:", destPath)
