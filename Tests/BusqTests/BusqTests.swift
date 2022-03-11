@@ -42,6 +42,7 @@ class BusqTests: XCTestCase {
     }
 
 
+
     func testLockdownClient(_ lfc: LockdownClient) throws {
         print(" - lockdown client:", try lfc.getName()) // “Bob's iPhone”
         print(" - device UDID:", try lfc.getDeviceUDID())
@@ -101,7 +102,8 @@ class BusqTests: XCTestCase {
 
     }
 
-    func signIPA(_ url: URL, identity: String, teamID: String, appid: String) async throws -> URL {
+    // expand=false: 17.825 vs. expand=true: 12.197
+    func signIPA(_ url: URL, identity: String, teamID: String, appid: String, recompress: Bool = false) async throws -> URL {
         #if !os(macOS)
         throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
         #else
@@ -183,7 +185,31 @@ class BusqTests: XCTestCase {
             try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: ["-vvvv", "--verify", signPath.path])
         }
 
-        return outputDir
+        if !recompress {
+            // just upload the output folder directly
+            return outputDir
+        } else {
+            // repackage as an IPA so we can just send a single file
+            // surprisingly, this seems to be slower than sending the expanded ipa directly
+            let repackaged = url.deletingPathExtension().appendingPathExtension("signed.ipa")
+            print("re-packaging signed ipa to:", repackaged.path)
+
+            // zip cannot trim path components unless it is in the current directoy;
+            // so we need to create a bogus script and execute that instead
+            let script = """
+            #!/bin/sh
+            cd '\(outputDir.path)'
+            /usr/bin/zip -ru '\(repackaged.path)' Payload
+            """
+
+            let zipScript = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory())).appendingPathExtension("sh")
+            try script.write(to: zipScript, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
+
+            print("zipScript:", zipScript.path)
+            try await NSUserUnixTask(url: URL(fileURLWithPath: zipScript.path)).execute(withArguments: [])
+            return repackaged
+        }
         #endif
     }
 
@@ -211,38 +237,11 @@ class BusqTests: XCTestCase {
         if expanded.boolValue == false { // a direct .ipa file
             let handle = try client.fileOpen(filename: destPath, fileMode: .wrOnly)
             try client.fileWrite(handle: handle, fileURL: url) { complete in
-                print("progress:", complete)
+                //print("progress:", complete)
             }
             try client.fileClose(handle: handle)
         } else {
-            /// Recursively copies all the elements of the url over to the baseDir
-            func copyFolder(at url: URL, to baseDir: String) throws {
-                let opts: FileManager.DirectoryEnumerationOptions
-                #if os(macOS) // these keys only available on macOS; this would be a problem on other platforms, since we rely on the behavior of producesRelativePathURLs to get the paths right
-                opts = [.includesDirectoriesPostOrder, .producesRelativePathURLs]
-                #else
-                opts = []
-                #endif
-
-                print("copy folder:", url.path, "to:", baseDir)
-                for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: opts) {
-                    let destPath = baseDir + "/" + path.relativePath
-                    if try path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
-                        print("  + creating folder:", destPath)
-                        try client.makeDirectory(path: destPath) // ensure the folder exists
-                        // recurse into sub-folder
-                        try copyFolder(at: path, to: destPath)
-                    } else {
-                        print("  ~ transferring:", destPath) // , "to:", destPath)
-                        let handle = try client.fileOpen(filename: destPath, fileMode: .wrOnly)
-                        try client.fileWrite(handle: handle, fileURL: path) { complete in
-                            // print("progress:", complete)
-                        }
-                        try client.fileClose(handle: handle)
-                    }
-                }
-            }
-            try copyFolder(at: url, to: destPath)
+            try client.copyFolder(at: url, to: destPath)
         }
 
         let iproxy = try lfc.createInstallationProxy(escrow: false)
@@ -307,3 +306,4 @@ class BusqTests: XCTestCase {
         }
     }
 }
+

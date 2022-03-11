@@ -53,7 +53,7 @@ public struct DeviceManager {
         }
     }
 
-    /// Release the event callback function that has been registered with idevice_event_subscribe().
+    /// Release the event callback function that has been registered with `idevice_event_subscribe()`.
     public static func eventUnsubscribe() -> MobileDeviceError? {
         let error = idevice_event_unsubscribe()
         return MobileDeviceError(rawValue: error.rawValue)
@@ -63,10 +63,7 @@ public struct DeviceManager {
     public static func getDeviceList() throws -> [String] {
         var devices: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
         var count: Int32 = 0
-        let rawError = idevice_get_device_list(&devices, &count)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_get_device_list(&devices, &count), MobileDeviceError.init)
 
         defer { idevice_device_list_free(devices) }
 
@@ -80,10 +77,7 @@ public struct DeviceManager {
     public static func getDeviceListExtended() throws -> [DeviceConnectionInfo] {
         var pdevices: UnsafeMutablePointer<idevice_info_t?>? = nil
         var count: Int32 = 0
-        let rawError = idevice_get_device_list_extended(&pdevices, &count)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_get_device_list_extended(&pdevices, &count), MobileDeviceError.init)
         guard let devices = pdevices else {
             throw MobileDeviceError.unknown
         }
@@ -152,17 +146,13 @@ public final class LockdownClient {
         guard let device = device.rawValue else {
             throw MobileDeviceError.deallocatedDevice
         }
-        let rawError: lockdownd_error_t
         var client: lockdownd_client_t? = nil
         if withHandshake {
-            rawError = lockdownd_client_new_with_handshake(device, &client, name)
+            try attempt(lockdownd_client_new_with_handshake(device, &client, name), LockdownError.init)
         } else {
-            rawError = lockdownd_client_new(device, &client, name)
+            try attempt(lockdownd_client_new(device, &client, name), LockdownError.init)
         }
 
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
         guard client != nil else {
             throw LockdownError.unknown
         }
@@ -205,10 +195,7 @@ public final class LockdownClient {
         }
 
         var ptype: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_query_type(lockdown, &ptype)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_query_type(lockdown, &ptype), LockdownError.init)
         guard let type = ptype else {
             throw LockdownError.unknown
         }
@@ -322,10 +309,7 @@ extension LockdownClient {
         }
 
         var pplist: plist_t? = nil
-        let rawError = lockdownd_get_value(lockdown, domain, key, &pplist)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_get_value(lockdown, domain, key, &pplist), LockdownError.init)
         guard let plist = pplist else {
             throw LockdownError.unknown
         }
@@ -342,10 +326,7 @@ extension LockdownClient {
             throw LockdownError.unknown
         }
 
-        let rawError = lockdownd_set_value(lockdown, domain, key, value)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_set_value(lockdown, domain, key, value), LockdownError.init)
     }
 
     /// Removes a preference node by domain and/or key name.
@@ -353,10 +334,7 @@ extension LockdownClient {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
         }
-        let rawError = lockdownd_remove_value(lockdown, domain, key)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_remove_value(lockdown, domain, key), LockdownError.init)
     }
 
     /// Retrieves the name of the device from lockdownd set by the user.
@@ -365,10 +343,7 @@ extension LockdownClient {
             throw LockdownError.deallocated
         }
         var rawName: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_get_device_name(lockdown, &rawName)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_get_device_name(lockdown, &rawName), LockdownError.init)
 
         guard let pname = rawName else {
             throw LockdownError.unknown
@@ -383,10 +358,7 @@ extension LockdownClient {
             throw LockdownError.deallocated
         }
         var pudid: UnsafeMutablePointer<Int8>? = nil
-        let rawError = lockdownd_get_device_name(lockdown, &pudid)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(lockdownd_get_device_name(lockdown, &pudid), LockdownError.init)
 
         guard let udid = pudid else {
             throw LockdownError.unknown
@@ -473,10 +445,7 @@ public final class DeviceConnection {
         return try data.withUnsafeBytes { (pdata) -> UInt32 in
             var sentBytes: UInt32 = 0
             let pdata = pdata.baseAddress?.bindMemory(to: Int8.self, capacity: data.count)
-            let rawError = idevice_connection_send(rawValue, pdata, UInt32(data.count), &sentBytes)
-            if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-                throw error
-            }
+            try attempt(idevice_connection_send(rawValue, pdata, UInt32(data.count), &sentBytes), MobileDeviceError.init)
 
             return sentBytes
         }
@@ -491,16 +460,11 @@ public final class DeviceConnection {
         let pdata = UnsafeMutablePointer<Int8>.allocate(capacity: Int(length))
 
         defer { pdata.deallocate() }
-        let rawError: idevice_error_t
         var receivedBytes: UInt32 = 0
         if let timeout = timeout {
-            rawError = idevice_connection_receive_timeout(rawValue, pdata, length, &receivedBytes, timeout)
+            try attempt(idevice_connection_receive_timeout(rawValue, pdata, length, &receivedBytes, timeout), MobileDeviceError.init)
         } else {
-            rawError = idevice_connection_receive(rawValue, pdata, length, &receivedBytes)
-        }
-
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
+            try attempt(idevice_connection_receive(rawValue, pdata, length, &receivedBytes), MobileDeviceError.init)
         }
 
         return (Data(bytes: pdata, count: Int(receivedBytes)), receivedBytes)
@@ -524,10 +488,7 @@ public final class DeviceConnection {
             throw MobileDeviceError.disconnected
         }
         var fd: Int32 = 0
-        let rawError = idevice_connection_get_fd(rawValue, &fd)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_connection_get_fd(rawValue, &fd), MobileDeviceError.init)
 
         return fd
     }
@@ -587,10 +548,7 @@ public final class Device {
     /// Creates an `idevice_t` structure for the device specified by UDID, if the device is available (USBMUX devices only).
     public init(udid: String) throws {
         var dev: idevice_t?
-        let rawError = idevice_new(&dev, udid)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_new(&dev, udid), MobileDeviceError.init)
         self.rawValue = dev
     }
 
@@ -598,10 +556,7 @@ public final class Device {
     public init(udid: String, options: DeviceLookupOptions) throws {
         var dev: idevice_t?
 
-        let rawError = idevice_new_with_options(&dev, udid, .init(.init(coercing: options.rawValue)))
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_new_with_options(&dev, udid, .init(.init(coercing: options.rawValue))), MobileDeviceError.init)
         self.rawValue = dev
     }
 
@@ -611,10 +566,7 @@ public final class Device {
             throw MobileDeviceError.deallocatedDevice
         }
         var pconnection: idevice_connection_t? = nil
-        let rawError = idevice_connect(device, UInt16(port), &pconnection)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_connect(device, UInt16(port), &pconnection), MobileDeviceError.init)
         guard let connection = pconnection else {
             throw MobileDeviceError.unknown
         }
@@ -629,11 +581,7 @@ public final class Device {
             throw MobileDeviceError.disconnected
         }
         var handle: UInt32 = 0
-        let rawError = idevice_get_handle(rawValue, &handle)
-
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_get_handle(rawValue, &handle), MobileDeviceError.init)
 
         return handle
     }
@@ -644,10 +592,7 @@ public final class Device {
             throw MobileDeviceError.disconnected
         }
         var pudid: UnsafeMutablePointer<Int8>? = nil
-        let rawError = idevice_get_udid(rawValue, &pudid)
-        if let error = MobileDeviceError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(idevice_get_udid(rawValue, &pudid), MobileDeviceError.init)
 
         guard let udid = pudid else {
             throw MobileDeviceError.unknown
@@ -916,10 +861,7 @@ public final class InstallationProxy {
         }
 
         var client: instproxy_client_t? = nil
-        let rawError = instproxy_client_new(device, service, &client)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(instproxy_client_new(device, service, &client), LockdownError.init)
         guard client != nil else {
             throw InstallationProxyError.unknown
         }
@@ -934,10 +876,7 @@ public final class InstallationProxy {
             throw MobileDeviceError.deallocatedDevice
         }
         var ipc: instproxy_client_t? = nil
-        let rawError = instproxy_client_start_service(device, &ipc, label)
-        if let error = LockdownError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(instproxy_client_start_service(device, &ipc, label), LockdownError.init)
         guard let client = ipc else {
             throw InstallationProxyError.unknown
         }
@@ -1011,10 +950,7 @@ public final class InstallationProxy {
         }
 
         var presult: plist_t? = nil
-        let rawError = instproxy_browse(rawValue, options.rawValue, &presult)
-        if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(instproxy_browse(rawValue, options.rawValue, &presult), InstallationProxyError.init)
         guard let result = presult else {
             throw InstallationProxyError.unknown
         }
@@ -1176,10 +1112,7 @@ public final class InstallationProxy {
         }
 
         var presult: plist_t? = nil
-        let rawError = instproxy_lookup_archives(rawValue, options.rawValue, &presult)
-        if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(instproxy_lookup_archives(rawValue, options.rawValue, &presult), InstallationProxyError.init)
         guard let result = presult else {
             throw InstallationProxyError.unknown
         }
@@ -1303,10 +1236,7 @@ public final class InstallationProxy {
             throw InstallationProxyError.deallocatedClient
         }
         var ppath: UnsafeMutablePointer<Int8>? = nil
-        let rawError = instproxy_client_get_path_for_bundle_identifier(rawValue, bundleIdentifier, &ppath)
-        if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(instproxy_client_get_path_for_bundle_identifier(rawValue, bundleIdentifier, &ppath), InstallationProxyError.init)
         guard let path = ppath else {
             throw InstallationProxyError.unknown
         }
@@ -1666,10 +1596,7 @@ public final class DebugServer {
         
         return try label.withCString({ (label) -> T in
             var pclient: debugserver_client_t? = nil
-            let rawError = debugserver_client_start_service(device, &pclient, label)
-            if let error = DebugServerError(rawValue: rawError.rawValue) {
-                throw error
-            }
+            try attempt(debugserver_client_start_service(device, &pclient, label), DebugServerError.init)
             guard let client = pclient else {
                 throw DebugServerError.unknown
             }
@@ -1710,10 +1637,7 @@ public final class DebugServer {
         }
         
         var client: debugserver_client_t? = nil
-        let rawError = debugserver_client_new(device, service, &client)
-        if let error = DebugServerError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(debugserver_client_new(device, service, &client), DebugServerError.init)
         guard client != nil else {
             throw DebugServerError.unknown
         }
@@ -1728,10 +1652,7 @@ public final class DebugServer {
         
         return try data.withCString { (data) -> UInt32 in
             var sent: UInt32 = 0
-            let rawError = debugserver_client_send(rawValue, data, size, &sent)
-            if let error = DebugServerError(rawValue: rawError.rawValue) {
-                throw error
-            }
+            try attempt(debugserver_client_send(rawValue, data, size, &sent), DebugServerError.init)
             
             return sent
         }
@@ -1773,10 +1694,7 @@ public final class DebugServer {
         
         var presponse: UnsafeMutablePointer<Int8>? = nil
         var responseSize: Int = 0
-        let rawError = debugserver_client_send_command(rawValue, rawCommand, &presponse, &responseSize)
-        if let error = DebugServerError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(debugserver_client_send_command(rawValue, rawCommand, &presponse, &responseSize), DebugServerError.init)
         
         guard let response = presponse else {
             throw DebugServerError.unknown
@@ -1795,10 +1713,7 @@ public final class DebugServer {
         
         var presponse: UnsafeMutablePointer<Int8>? = nil
         var responseSize: Int = 0
-        let rawError = debugserver_client_receive_response(rawValue, &presponse, &responseSize)
-        if let error = DebugServerError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(debugserver_client_receive_response(rawValue, &presponse, &responseSize), DebugServerError.init)
         
         guard let response = presponse else {
             throw DebugServerError.unknown
@@ -1815,10 +1730,7 @@ public final class DebugServer {
             throw DebugServerError.deallocatedClient
         }
         
-        let rawError = debugserver_client_set_ack_mode(rawValue, enabled ? 1 : 0)
-        if let error = DebugServerError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(debugserver_client_set_ack_mode(rawValue, enabled ? 1 : 0), DebugServerError.init)
     }
 
     /// Sets the argv which launches an app.
@@ -1856,10 +1768,7 @@ public final class DebugServer {
         
         return try env.withCString { (env) -> String in
             var presponse: UnsafeMutablePointer<Int8>? = nil
-            let rawError = debugserver_client_set_environment_hex_encoded(rawValue, env, &presponse)
-            if let error = DebugServerError(rawValue: rawError.rawValue) {
-                throw error
-            }
+            try attempt(debugserver_client_set_environment_hex_encoded(rawValue, env, &presponse), DebugServerError.init)
             guard let response = presponse else {
                 throw DebugServerError.unknown
             }
@@ -1962,10 +1871,7 @@ public final class FileRelayClient {
         }
         
         var pclient: file_relay_client_t? = nil
-        let rawError = file_relay_client_start_service(device, &pclient, label)
-        if let error = FileRelayError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(file_relay_client_start_service(device, &pclient, label), FileRelayError.init)
         guard let pointer = pclient else {
             throw FileRelayError.unknown
         }
@@ -1990,10 +1896,7 @@ public final class FileRelayClient {
         }
         
         var fileRelay: file_relay_client_t? = nil
-        let rawError = file_relay_client_new(device, service, &fileRelay)
-        if let error = FileRelayError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(file_relay_client_new(device, service, &fileRelay), FileRelayError.init)
         self.rawValue = fileRelay
     }
 
@@ -2102,10 +2005,7 @@ public final class ScreenshotService {
         }
 
         var client: screenshotr_client_t? = nil
-        let rawError = screenshotr_client_new(device, service, &client)
-        if let error = ScreenshotError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(screenshotr_client_new(device, service, &client), ScreenshotError.init)
         guard client != nil else {
             throw ScreenshotError.unknown
         }
@@ -2121,17 +2021,15 @@ public final class ScreenshotService {
         var image: UnsafeMutablePointer<Int8>? = nil
         var size: UInt64 = 0
         
-        let rawError = screenshotr_take_screenshot(rawValue, &image, &size)
-        if let error = ScreenshotError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(screenshotr_take_screenshot(rawValue, &image, &size), ScreenshotError.init)
         
         let buffer = UnsafeBufferPointer(start: image, count: Int(size))
         defer { buffer.deallocate() }
 
         return Data(buffer: buffer)
     }
-    
+
+    /// Disconnects a screenshotr client from the device and frees up the screenshotr client data.
     deinit {
         guard let rawValue = self.rawValue else {
             return
@@ -2177,10 +2075,7 @@ public final class SyslogRelayClient {
         }
         
         var pclient: syslog_relay_client_t? = nil
-        let rawError = syslog_relay_client_start_service(device, &pclient, label)
-        if let error = SyslogRelayError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(syslog_relay_client_start_service(device, &pclient, label), SyslogRelayError.init)
         guard let pointer = pclient else {
             throw SyslogRelayError.unknown
         }
@@ -2205,10 +2100,7 @@ public final class SyslogRelayClient {
         }
         
         var syslogRelay: syslog_relay_client_t? = nil
-        let rawError = syslog_relay_client_new(device, service, &syslogRelay)
-        if let error = SyslogRelayError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(syslog_relay_client_new(device, service, &syslogRelay), SyslogRelayError.init)
         self.rawValue = syslogRelay
     }
 
@@ -2236,10 +2128,7 @@ public final class SyslogRelayClient {
 
     /// Stops capturing the syslog of the device.
     public func stopCapture() throws {
-        let rawError = syslog_relay_stop_capture(rawValue)
-        if let error = SyslogRelayError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(syslog_relay_stop_capture(rawValue), SyslogRelayError.init)
     }
 
     /// Receives data using the given `syslog_relay` client with specified timeout.
@@ -2321,10 +2210,7 @@ public final class SpringboardServiceClient {
             throw LockdownError.deallocated
         }
         var pclient: sbservices_client_t? = nil
-        let rawError = sbservices_client_start_service(lockdown, &pclient, label)
-        if let error = SpringboardError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(sbservices_client_start_service(lockdown, &pclient, label), SpringboardError.init)
         guard let client = pclient else {
             throw SpringboardError.unknown
         }
@@ -2348,10 +2234,7 @@ public final class SpringboardServiceClient {
         }
 
         var client: sbservices_client_t? = nil
-        let rawError = sbservices_client_new(device, service, &client)
-        if let error = SpringboardError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(sbservices_client_new(device, service, &client), SpringboardError.init)
         guard client != nil else {
             throw SpringboardError.unknown
         }
@@ -2364,10 +2247,7 @@ public final class SpringboardServiceClient {
         }
         var ppng: UnsafeMutablePointer<Int8>? = nil
         var size: UInt64 = 0
-        let rawError = sbservices_get_icon_pngdata(rawValue, bundleIdentifier, &ppng, &size)
-        if let error = SpringboardError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(sbservices_get_icon_pngdata(rawValue, bundleIdentifier, &ppng, &size), SpringboardError.init)
         guard let png = ppng else {
             throw SpringboardError.unknown
         }
@@ -2383,10 +2263,7 @@ public final class SpringboardServiceClient {
         }
         var ppng: UnsafeMutablePointer<Int8>? = nil
         var size: UInt64 = 0
-        let rawError = sbservices_get_home_screen_wallpaper_pngdata(rawValue, &ppng, &size)
-        if let error = SpringboardError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(sbservices_get_home_screen_wallpaper_pngdata(rawValue, &ppng, &size), SpringboardError.init)
         guard let png = ppng else {
             throw SpringboardError.unknown
         }
@@ -2397,6 +2274,7 @@ public final class SpringboardServiceClient {
         return Data(buffer: buffer)
     }
 
+    /// Disconnects an sbservices client from the device and frees up the sbservices client data.
     deinit {
         guard let rawValue = self.rawValue else {
             return
@@ -2433,10 +2311,7 @@ public final class HouseArrestClient {
 
         var pclient: house_arrest_client_t? = nil
 
-        let rawError = house_arrest_client_start_service(device, &pclient, label)
-        if let error = HouseArrestError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(house_arrest_client_start_service(device, &pclient, label), HouseArrestError.init)
         guard let pointer = pclient else {
             throw HouseArrestError.unknown
         }
@@ -2461,36 +2336,24 @@ public final class HouseArrestClient {
         }
 
         var client: house_arrest_client_t? = nil
-        let rawError = house_arrest_client_new(device, service, &client)
-        if let error = HouseArrestError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(house_arrest_client_new(device, service, &client), HouseArrestError.init)
         self.rawValue = client
     }
 
     /// Sends a generic request to the connected `house_arrest` service.
     public func sendRequest(dict: Plist) throws {
-        let rawError = house_arrest_send_request(rawValue, dict.rawValue)
-        if let error = HouseArrestError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(house_arrest_send_request(rawValue, dict.rawValue), HouseArrestError.init)
     }
 
     /// Send a command to the connected `house_arrest` service. Calls `house_arrest_send_request()` internally.
     public func sendCommand(command: String, appid: String) throws {
-        let rawError = house_arrest_send_command(rawValue, command, appid)
-        if let error = HouseArrestError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(house_arrest_send_command(rawValue, command, appid), HouseArrestError.init)
     }
 
     /// Retrieves the result of a previously sent `house_arrest_request_*` request.
     public func getResult() throws -> Plist {
         var presult: plist_t? = nil
-        let rawError = house_arrest_get_result(rawValue, &presult)
-        if let error = HouseArrestError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(house_arrest_get_result(rawValue, &presult), HouseArrestError.init)
 
         guard let result = presult else {
             throw HouseArrestError.unknown
@@ -2499,6 +2362,7 @@ public final class HouseArrestClient {
         return Plist(rawValue: result)
     }
 
+    /// Disconnects an `house_arrest` client from the device and frees up the `house_arrest` client data.
     deinit {
         guard let rawValue = self.rawValue else {
             return
@@ -2533,10 +2397,7 @@ public final class FileConduit {
 
         var pclient: afc_client_t? = nil
 
-        let rawError = afc_client_start_service(device, &pclient, label)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_client_start_service(device, &pclient, label), FileConduitError.init)
         guard let pointer = pclient else {
             throw FileConduitError.AFC_E_UNKNOWN_ERROR
         }
@@ -2561,21 +2422,14 @@ public final class FileConduit {
         }
 
         var client: afc_client_t? = nil
-        let rawError = afc_client_new(device, service, &client)
-
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_client_new(device, service, &client), FileConduitError.init)
         self.rawValue = client
     }
 
     /// Connects to the `afc` service on the specified house arrest client.
     public init(houseArrest: HouseArrestClient) throws {
         var client: afc_client_t? = nil
-        let rawError = afc_client_new_from_house_arrest_client(houseArrest.rawValue, &client)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_client_new_from_house_arrest_client(houseArrest.rawValue, &client), FileConduitError.init)
         self.rawValue = client
 
     }
@@ -2585,10 +2439,7 @@ public final class FileConduit {
     /// e.g.: `["Model": "iPad5,3", "FSTotalBytes": "127993663488", "FSFreeBytes": "117186351104", "FSBlockSize": "4096"]`
     public func getDeviceInfo() throws -> [String: String] {
         var deviceInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
-        let rawError = afc_get_device_info(rawValue, &deviceInformation)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_get_device_info(rawValue, &deviceInformation), FileConduitError.init)
 
         defer { afc_dictionary_free(deviceInformation) }
         let idList = String.array(point: deviceInformation)
@@ -2600,12 +2451,10 @@ public final class FileConduit {
         return dict
     }
 
+    /// Gets a directory listing of the directory requested.
     public func readDirectory(path: String) throws -> [String] {
         var directoryInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
-        let rawError = afc_read_directory(rawValue, path,  &directoryInformation)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_read_directory(rawValue, path,  &directoryInformation), FileConduitError.init)
 
         defer { afc_dictionary_free(directoryInformation) }
 
@@ -2614,45 +2463,36 @@ public final class FileConduit {
 
     }
 
+    /// Gets information about a specific file.
     public func getFileInfo(path: String) throws -> [String] {
         var fileInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
-        let rawError = afc_get_file_info(rawValue, path, &fileInformation)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_get_file_info(rawValue, path, &fileInformation), FileConduitError.init)
 
         defer { afc_dictionary_free(fileInformation) }
         let idList = String.array(point: fileInformation)
         return idList
     }
 
+    /// Opens a file on the device.
     public func fileOpen(filename: String, fileMode: FileConduitFileMode) throws -> UInt64 {
-
         var handle: UInt64 = 0
 
-        let rawError = afc_file_open(rawValue, filename, afc_file_mode_t(.init(coercing: fileMode.rawValue)), &handle)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_open(rawValue, filename, afc_file_mode_t(.init(coercing: fileMode.rawValue)), &handle), FileConduitError.init)
 
         return handle
     }
 
-
+    /// Closes a file on the device.
     public func fileClose(handle: UInt64) throws {
-        let rawError = afc_file_close(rawValue, handle)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_close(rawValue, handle), FileConduitError.init)
     }
 
+    /// Locks or unlocks a file on the device.
     public func fileLock(handle: UInt64, operation: FileConduitLockOp) throws {
-        let rawError = afc_file_lock(rawValue, handle, afc_lock_op_t(.init(coercing: operation.rawValue)))
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_lock(rawValue, handle, afc_lock_op_t(.init(coercing: operation.rawValue))), FileConduitError.init)
     }
 
+    /// Attempts to the read the given number of bytes from the given file.
     public func fileRead(handle: UInt64) throws -> Data {
         var data = Data()
         let length: UInt32 = 10000
@@ -2665,25 +2505,21 @@ public final class FileConduit {
         return data
     }
 
+    /// Attempts to the read the given number of bytes from the given file.
     public func fileRead(handle: UInt64, length: UInt32) throws -> (Data, UInt32) {
-
         let pdata = UnsafeMutablePointer<Int8>.allocate(capacity: Int(length))
         defer { pdata.deallocate() }
 
         var bytesRead: UInt32 = 0
 
-        let rawError = afc_file_read(rawValue, handle, pdata, length, &bytesRead)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_read(rawValue, handle, pdata, length, &bytesRead), FileConduitError.init)
 
         return (Data(bytes: pdata, count: Int(bytesRead)), bytesRead)
     }
 
+    /// Writes a given number of bytes to a file.
     public func fileWrite(handle: UInt64, data: Data) throws ->UInt32 {
-
         return try data.withUnsafeBytes({ (pdata) -> UInt32 in
-
             var bytesWritten: UInt32 = 0
             let pdata = pdata.baseAddress?.bindMemory(to: Int8.self, capacity: data.count)
             let rawError = afc_file_write(rawValue, handle, pdata, UInt32(data.count), &bytesWritten)
@@ -2696,15 +2532,14 @@ public final class FileConduit {
         })
     }
 
+    /// Writes a given number of bytes to a file.
     public func fileWrite(handle: UInt64, fileURL: URL, progressHandler: ((Double) -> Void)?) throws {
-
         let data = try Data(contentsOf: fileURL)
         var total = data.count
         var length = 102400
         var index = 0
 
-        repeat{
-
+        repeat {
             if total < length { length = total }
             total -= length
 
@@ -2715,86 +2550,64 @@ public final class FileConduit {
         } while total > 0
     }
 
+    /// Seeks to a given position of a pre-opened file on the device.
     public func fileSeek(handle: UInt64, offset: Int64, whence: Int32) throws {
-        let rawError = afc_file_seek(rawValue, handle, offset, whence)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_seek(rawValue, handle, offset, whence), FileConduitError.init)
     }
 
+    /// Returns current position in a pre-opened file on the device.
     public func fileTell(handle: UInt64) throws -> UInt64 {
         var position: UInt64 = 0
 
-        let rawError = afc_file_tell(rawValue, handle, &position)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_tell(rawValue, handle, &position), FileConduitError.init)
 
         return position
     }
 
+    /// Sets the size of a file on the device.
     public func fileTruncate(handle: UInt64, newsize: UInt64) throws {
-        let rawError = afc_file_truncate(rawValue, handle, newsize)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_file_truncate(rawValue, handle, newsize), FileConduitError.init)
     }
 
+    /// Deletes a file or directory.
     public func removeFile(path: String) throws {
-        let rawError = afc_remove_path(rawValue, path)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_remove_path(rawValue, path), FileConduitError.init)
     }
 
+    /// Renames a file or directory on the device.
     public func renamePath(from: String, to: String) throws {
-        let rawError = afc_rename_path(rawValue, from, to)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_rename_path(rawValue, from, to), FileConduitError.init)
     }
 
+    /// Creates a directory on the device.
     public func makeDirectory(path: String) throws {
-        let rawError = afc_make_directory(rawValue, path)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_make_directory(rawValue, path), FileConduitError.init)
     }
 
+    /// Sets the size of a file on the device without prior opening it.
     public func truncate(path: String, newsize: UInt64) throws {
-        let rawError = afc_truncate(rawValue, path, newsize)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_truncate(rawValue, path, newsize), FileConduitError.init)
     }
 
+    /// Creates a hard link or symbolic link on the device.
     public func makeLink(linkType: FileConduitLinkType, target: String, linkName: String) throws {
-        let rawError = afc_make_link(rawValue, afc_link_type_t(.init(coercing: linkType.rawValue)), target, linkName)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_make_link(rawValue, afc_link_type_t(.init(coercing: linkType.rawValue)), target, linkName), FileConduitError.init)
     }
 
+    /// Sets the modification time of a file on the device.
     public func setFileTime(path: String, date: Date) throws {
-        let rawError = afc_set_file_time(rawValue, path, UInt64(date.timeIntervalSinceReferenceDate))
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_set_file_time(rawValue, path, UInt64(date.timeIntervalSinceReferenceDate)), FileConduitError.init)
     }
 
+    /// Deletes a file or directory including possible contents.
     public func removePathAndContents(path: String) throws {
-        let rawError = afc_remove_path_and_contents(rawValue, path)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_remove_path_and_contents(rawValue, path), FileConduitError.init)
     }
 
+    /// Get a specific key of the device info list for a client connection. Known key values are: `Model`, `FSTotalBytes`, `FSFreeBytes` and `FSBlockSize`. This is a helper function for `afc_get_device_info()`.
     public func getDeviceInfoKey(key: String) throws -> String? {
         var pvalue: UnsafeMutablePointer<Int8>? = nil
-        let rawError = afc_get_device_info_key(rawValue, key, &pvalue)
-        if let error = FileConduitError(rawValue: rawError.rawValue) {
-            throw error
-        }
+        try attempt(afc_get_device_info_key(rawValue, key, &pvalue), FileConduitError.init)
 
         guard let value = pvalue else {
             return nil
@@ -2803,6 +2616,7 @@ public final class FileConduit {
         return String(cString: value)
     }
 
+    /// Frees up an AFC client. If the connection was created by the client itself, the connection will be closed.
     deinit {
         guard let rawValue = self.rawValue else {
             return
@@ -2814,6 +2628,37 @@ public final class FileConduit {
         self.rawValue = nil
     }
 }
+
+extension FileConduit {
+    /// Recursively copies all the elements of the url over to the destinationRoot
+    public func copyFolder(at url: URL, to destinationRoot: String) throws {
+        let opts: FileManager.DirectoryEnumerationOptions
+        #if os(macOS) // these keys only available on macOS; this would be a problem on other platforms, since we rely on the behavior of producesRelativePathURLs to get the paths right
+        opts = [.includesDirectoriesPostOrder, .producesRelativePathURLs]
+        #else
+        opts = []
+        #endif
+
+        // print("copy folder:", url.path, "to:", destinationRoot)
+        for path in try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: opts) {
+            let destPath = destinationRoot + "/" + path.relativePath
+            if try path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true {
+                // print("  + creating folder:", destPath)
+                try self.makeDirectory(path: destPath) // ensure the folder exists
+                try copyFolder(at: path, to: destPath) // recurse into sub-folder
+            } else {
+                // print("  ~ transferring:", destPath) // , "to:", destPath)
+                let handle = try self.fileOpen(filename: destPath, fileMode: .wrOnly)
+                try self.fileWrite(handle: handle, fileURL: path) { complete in
+                    // print("progress:", complete)
+                }
+                try self.fileClose(handle: handle)
+            }
+        }
+    }
+
+}
+
 
 public enum FileConduitFileMode: UInt32 {
     case rdOnly = 0x00000001
@@ -2932,6 +2777,13 @@ extension FileConduitError : LocalizedError {
 }
 
 // MARK: Miscellanea
+
+/// Perform the given action, throwing an error if it is initializable from the result code
+private func attempt<R: RawRepresentable, E: Error>(_ action: R, _ handler: (R.RawValue) -> E?) throws {
+    if let error = handler(action.rawValue) {
+        throw error
+    }
+}
 
 class Wrapper<T> {
     let value: T
