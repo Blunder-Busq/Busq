@@ -35,19 +35,25 @@ class BusqTests: XCTestCase {
         print("Devices:", deviceInfos.count)
         for deviceInfo in deviceInfos {
             print("device:", deviceInfo.udid, "connectionType:", deviceInfo.connectionType)
+            if deviceInfo.connectionType == .network {
+                continue // skip wireless connections while testing for efficiency
+            }
+
             let device = try Device(udid: deviceInfo.udid, options: deviceInfo.connectionType == .network ? .network : .usbmux)
             print(" - handle:", try device.getHandle())
 
             let lfc = try device.createLockdownClient()
             try testLockdownClient(lfc)
-            try testAppList(lfc)
+            try testFileConduit(lfc)
 
-            try testInstallationProxy(lfc)
-            try testSpringboardServiceClient(lfc)
-            // try testFileConduit(lfc) // AFC_E_MUX_ERROR
+            // try testAppList(lfc)
+            // try testInstallationProxy(lfc)
+            // try testSpringboardServiceClient(lfc)
             // try testHouseArrestClient(lfc)
             // try testSyslogRelayClient(lfc)
-            // try testFileRelayClient(lfc) // muxerror
+
+
+            // try testFileRelayClient(lfc) // muxError
             // try testDebugServer(lfc) // seems to require manual start of the service
         }
     }
@@ -61,37 +67,56 @@ class BusqTests: XCTestCase {
     }
 
     func testInstallationProxy(_ lfc: LockdownClient) throws {
-        let client = try lfc.createInstallationProxy()
+        let client = try lfc.createInstallationProxy(escrow: true)
         let _ = client
     }
 
     func testDebugServer(_ lfc: LockdownClient) throws {
-        let client = try lfc.createDebugServer()
+        let client = try lfc.createDebugServer(escrow: true)
         let _ = client
     }
 
     func testFileConduit(_ lfc: LockdownClient) throws {
-        let client = try lfc.createFileConduit()
-        let _ = client
+        let client = try lfc.createFileConduit(escrow: false)
+
+        let info = try client.getDeviceInfo()
+        print(" - device info:", info) // AFC_E_MUX_ERROR
+        // ["Model": "iPad5,3", "FSTotalBytes": "127993663488", "FSFreeBytes": "117186351104", "FSBlockSize": "4096"]
+        XCTAssertNotNil(info["Model"])
+        XCTAssertNotNil(info["FSTotalBytes"])
+        XCTAssertNotNil(info["FSFreeBytes"])
+        XCTAssertNotNil(info["FSBlockSize"])
+
+        // [".", "..", "Downloads", "Books", "Photos", "Recordings", "DCIM", "iTunes_Control", "MediaAnalysis", "PhotoData", "Purchases"]
+        print(" - dir:", try client.readDirectory(path: "/"))
+
+        // e.g.: [".", "..", "downloads.28.sqlitedb", "downloads.28.sqlitedb-shm", "downloads.28.sqlitedb-wal"]
+        print(" - downloads dir:", try client.readDirectory(path: "/Downloads"))
+
+        // test reading and writing
+        let dirname = UUID().uuidString
+        print(" - mkdir:", try client.makeDirectory(path: "/\(dirname)/y/z"))
+        print(" - rmdir:", try client.removePathAndContents(path: "/\(dirname)"))
+
     }
 
     func testHouseArrestClient(_ lfc: LockdownClient) throws {
-        let client = try lfc.createHouseArrestClient()
+        let client = try lfc.createHouseArrestClient(escrow: true)
         let _ = client
    }
 
     func testFileRelayClient(_ lfc: LockdownClient) throws {
-        let client = try lfc.createFileRelayClient()
+        let client = try lfc.createFileRelayClient(escrow: true)
         let _ = client
     }
 
     func testSyslogRelayClient(_ lfc: LockdownClient) throws {
-        let client = try lfc.createSyslogRelayClient()
+        let client = try lfc.createSyslogRelayClient(escrow: true)
         let _ = client
     }
 
     func testSpringboardServiceClient(_ lfc: LockdownClient) throws {
-        let client = try lfc.createSpringboardServiceClient()
+        let client = try lfc.createSpringboardServiceClient(escrow: true)
         let wallpaper = try client.getHomeScreenWallpaperPNGData()
         XCTAssertNotEqual(0, wallpaper.count)
 
@@ -103,7 +128,7 @@ class BusqTests: XCTestCase {
     }
 
     func testAppList(_ lfc: LockdownClient, type appType: ApplicationType = .any) throws {
-        let proxy = try lfc.createInstallationProxy()
+        let proxy = try lfc.createInstallationProxy(escrow: true)
 
         print("created proxy:", proxy)
 

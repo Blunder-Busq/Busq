@@ -124,7 +124,7 @@ public final class LockdownService {
         }
         let rawError = lockdownd_service_descriptor_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in lockdownd_service_descriptor_free: \(rawError)")
+            debugPrint("error in lockdownd_service_descriptor_free: \(rawError)")
         }
     }
 }
@@ -170,14 +170,14 @@ public final class LockdownClient {
     }
 
     /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
-    public func getService(identifier: String, withEscroBag: Bool = false) throws -> LockdownService {
+    public func getService(identifier: String, escrow withEscrowBag: Bool) throws -> LockdownService {
         guard let lockdown = self.rawValue else {
             throw LockdownError.deallocated
         }
 
         var pservice: lockdownd_service_descriptor_t? = nil
         let lockdownError: lockdownd_error_t
-        if withEscroBag {
+        if withEscrowBag {
             lockdownError = lockdownd_start_service_with_escrow_bag(lockdown, identifier, &pservice)
         } else {
             lockdownError = lockdownd_start_service(lockdown, identifier, &pservice)
@@ -193,8 +193,8 @@ public final class LockdownClient {
     }
 
     /// Requests to start a service and perform the closure.
-    public func startService<T>(identifier: String, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
-        let service = try getService(identifier: identifier, withEscroBag: withEscroBag)
+    public func startService<T>(identifier: String, escrow withEscrowBag: Bool, body: (LockdownService) throws -> T) throws -> T {
+        let service = try getService(identifier: identifier, escrow: withEscrowBag)
         return try body(service)
     }
 
@@ -224,7 +224,7 @@ public final class LockdownClient {
         }
         let rawError = lockdownd_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in lockdownd_client_free: \(rawError)")
+            debugPrint("error in lockdownd_client_free: \(rawError)")
         }
     }
 
@@ -232,50 +232,50 @@ public final class LockdownClient {
 
 public extension LockdownClient {
     /// Requests to start a service and retrieve it's port on success. Sends the escrow bag from the device's pair record.
-    func getService(service: AppleServiceIdentifier, withEscroBag: Bool = false) throws -> LockdownService {
-        return try getService(identifier: service.rawValue, withEscroBag: withEscroBag)
+    func getService(service: AppleServiceIdentifier, escrow withEscrowBag: Bool) throws -> LockdownService {
+        return try getService(identifier: service.rawValue, escrow: withEscrowBag)
     }
 
     /// Requests to start a service and perform the closure.
-    func startService<T>(service: AppleServiceIdentifier, withEscroBag: Bool = false, body: (LockdownService) throws -> T) throws -> T {
-        return try startService(identifier: service.rawValue, withEscroBag: withEscroBag, body: body)
+    func startService<T>(service: AppleServiceIdentifier, escrow withEscrowBag: Bool, body: (LockdownService) throws -> T) throws -> T {
+        return try startService(identifier: service.rawValue, escrow: withEscrowBag, body: body)
     }
 }
 
 public extension LockdownClient {
     /// Creates a new `SpringboardServiceClient`
-    func createSpringboardServiceClient(withEscroBag: Bool = true) throws -> SpringboardServiceClient {
-        try SpringboardServiceClient(device: device, service: getService(identifier: AppleServiceIdentifier.springboard.rawValue, withEscroBag: withEscroBag))
+    func createSpringboardServiceClient(escrow withEscrowBag: Bool) throws -> SpringboardServiceClient {
+        try SpringboardServiceClient(device: device, service: getService(identifier: AppleServiceIdentifier.springboard.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `InstallationProxy`
-    func createInstallationProxy(withEscroBag: Bool = true) throws -> InstallationProxy {
-        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, withEscroBag: withEscroBag))
+    func createInstallationProxy(escrow withEscrowBag: Bool) throws -> InstallationProxy {
+        try InstallationProxy(device: device, service: getService(identifier: AppleServiceIdentifier.installationProxy.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `FileConduit`
-    func createFileConduit(withEscroBag: Bool = true) throws -> FileConduit {
-        try FileConduit(device: device, service: getService(identifier: AppleServiceIdentifier.afc.rawValue, withEscroBag: withEscroBag))
+    func createFileConduit(escrow withEscrowBag: Bool) throws -> FileConduit {
+        try FileConduit(device: device, service: getService(identifier: AppleServiceIdentifier.afc.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `HouseArrestClient`
-    func createHouseArrestClient(withEscroBag: Bool = true) throws -> HouseArrestClient {
-        try HouseArrestClient(device: device, service: getService(identifier: AppleServiceIdentifier.houseArrest.rawValue, withEscroBag: withEscroBag))
+    func createHouseArrestClient(escrow withEscrowBag: Bool) throws -> HouseArrestClient {
+        try HouseArrestClient(device: device, service: getService(identifier: AppleServiceIdentifier.houseArrest.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `DebugServer`
-    func createDebugServer(withEscroBag: Bool = true) throws -> DebugServer {
-        try DebugServer(device: device, service: getService(identifier: AppleServiceIdentifier.debugserver.rawValue, withEscroBag: withEscroBag))
+    func createDebugServer(escrow withEscrowBag: Bool) throws -> DebugServer {
+        try DebugServer(device: device, service: getService(identifier: AppleServiceIdentifier.debugserver.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `SyslogRelayClient`
-    func createSyslogRelayClient(withEscroBag: Bool = true) throws -> SyslogRelayClient {
-        try SyslogRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.syslogRelay.rawValue, withEscroBag: withEscroBag))
+    func createSyslogRelayClient(escrow withEscrowBag: Bool) throws -> SyslogRelayClient {
+        try SyslogRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.syslogRelay.rawValue, escrow: withEscrowBag))
     }
 
     /// Creates a new `FileRelayClient`
-    func createFileRelayClient(withEscroBag: Bool = true) throws -> FileRelayClient {
-        try FileRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.fileRelay.rawValue, withEscroBag: withEscroBag))
+    func createFileRelayClient(escrow withEscrowBag: Bool) throws -> FileRelayClient {
+        try FileRelayClient(device: device, service: getService(identifier: AppleServiceIdentifier.fileRelay.rawValue, escrow: withEscrowBag))
     }
 }
 
@@ -539,7 +539,7 @@ public final class DeviceConnection {
         }
         let rawError = idevice_disconnect(rawValue)
         if rawError.rawValue != 0 {
-            print("error in idevice_disconnect: \(rawError)")
+            debugPrint("error in idevice_disconnect: \(rawError)")
         }
     }
 }
@@ -1737,7 +1737,7 @@ public final class DebugServer {
         }
         let rawError = debugserver_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in debugserver_client_free: \(rawError)")
+            debugPrint("error in debugserver_client_free: \(rawError)")
         }
         self.rawValue = nil
     }
@@ -1807,7 +1807,7 @@ public final class DebugServerCommand {
         }
         let rawError = debugserver_command_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in debugserver_command_free: \(rawError)")
+            debugPrint("error in debugserver_command_free: \(rawError)")
         }
     }
 }
@@ -1894,7 +1894,7 @@ public final class FileRelayClient {
         }
         let rawError = file_relay_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in file_relay_client_free: \(rawError)")
+            debugPrint("error in file_relay_client_free: \(rawError)")
         }
     }
 }
@@ -1999,7 +1999,7 @@ public final class ScreenshotService {
         }
         let rawError = screenshotr_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in screenshotr_client_free: \(rawError)")
+            debugPrint("error in screenshotr_client_free: \(rawError)")
         }
     }
 }
@@ -2128,7 +2128,7 @@ public final class SyslogRelayClient {
         }
         let rawError = syslog_relay_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in syslog_relay_client_free: \(rawError)")
+            debugPrint("error in syslog_relay_client_free: \(rawError)")
         }
     }
 }
@@ -2265,7 +2265,7 @@ public final class SpringboardServiceClient {
 
         let rawError = sbservices_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in sbservices_client_free: \(rawError)")
+            debugPrint("error in sbservices_client_free: \(rawError)")
         }
         self.rawValue = nil
     }
@@ -2366,7 +2366,7 @@ public final class HouseArrestClient {
         }
         let rawError = house_arrest_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in house_arrest_client_free: \(rawError)")
+            debugPrint("error in house_arrest_client_free: \(rawError)")
         }
         self.rawValue = nil
     }
@@ -2441,7 +2441,10 @@ public final class FileConduit {
 
     }
 
-    public func getDeviceInfo() throws -> [String] {
+    /// Get device information for a connected client. The device information returned is the device model as well as the free space, the total capacity and blocksize on the accessed disk partition.
+    ///
+    /// e.g.: `["Model": "iPad5,3", "FSTotalBytes": "127993663488", "FSFreeBytes": "117186351104", "FSBlockSize": "4096"]`
+    public func getDeviceInfo() throws -> [String: String] {
         var deviceInformation: UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>? = nil
         let rawError = afc_get_device_info(rawValue, &deviceInformation)
         if let error = FileConduitError(rawValue: rawError.rawValue) {
@@ -2450,7 +2453,12 @@ public final class FileConduit {
 
         defer { afc_dictionary_free(deviceInformation) }
         let idList = String.array(point: deviceInformation)
-        return idList
+        var dict: [String: String] = [:]
+        // convert the flat array into key/value pairs
+        for i in stride(from: 1, to: idList.count, by: 2) {
+            dict[idList[i-1]] = idList[i]
+        }
+        return dict
     }
 
     public func readDirectory(path: String) throws -> [String] {
@@ -2662,7 +2670,7 @@ public final class FileConduit {
         }
         let rawError = afc_client_free(rawValue)
         if rawError.rawValue != 0 {
-            print("error in afc_client_free: \(rawError)")
+            debugPrint("error in afc_client_free: \(rawError)")
         }
         self.rawValue = nil
     }
