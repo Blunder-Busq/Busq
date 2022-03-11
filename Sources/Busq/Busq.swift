@@ -1420,7 +1420,7 @@ public enum InstallationProxyError: Int32, Error {
     case stageCreationFailed = -40
     case symlinkFailed = -41
     case unknownCommand = -42
-    case itunesARtworkCaptureFailed = -43
+    case itunesArtworkCaptureFailed = -43
     case itunesMetadataCaptureFailed = -44
     case deviceOSVersionTooLow = -45
     case deviceFamilyNotSupported = -46
@@ -1429,7 +1429,7 @@ public enum InstallationProxyError: Int32, Error {
     case pluginCopyFailed = -49
     case breadcrumbFailed = -50
     case breadcrumbUnlockFailed = -51
-    case geojsonCaputreFailed = -52
+    case geojsonCaptureFailed = -52
     case newsstandArtworkCaputureFailed = -53
     case missingCommand = -54
     case notEntitled = -55
@@ -1441,10 +1441,149 @@ public enum InstallationProxyError: Int32, Error {
     case dictionaryCreationFailed = -61
     case installProhibited = -62
     case uninstallProhibited = -63
-    case missingBUndleVersion = -64
+    case missingBundleVersion = -64
     case unknown = -256
 
     case deallocatedClient = 100
+}
+
+extension InstallationProxyError : LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidArgument:
+            return NSLocalizedString("Invalid argument", comment: "")
+        case .plistError:
+            return NSLocalizedString("Property list error", comment: "")
+        case .connectionFailed:
+            return NSLocalizedString("connection failed", comment: "")
+        case .operationInProgress:
+            return NSLocalizedString("Operation in progress", comment: "")
+        case .operationFailed:
+            return NSLocalizedString("Operation failed", comment: "")
+        case .receiveTimeout:
+            return NSLocalizedString("Receive timeout", comment: "")
+        case .alreadyArchived:
+            return NSLocalizedString("Application already archived", comment: "")
+        case .apiInternalError:
+            return NSLocalizedString("API internal error", comment: "")
+        case .applicationAlreadyInstalled:
+            return NSLocalizedString("Application already installed", comment: "")
+        case .applicationMoveFailed:
+            return NSLocalizedString("Application move failed", comment: "")
+        case .applicationSinfCaptureFailed:
+            return NSLocalizedString("Application Sinf capture failed", comment: "")
+        case .applicationSandboxFailed:
+            return NSLocalizedString("Application sandbox failed", comment: "")
+        case .applicationVerificationFailed:
+            return NSLocalizedString("Application verification failed", comment: "")
+        case .archiveDestructionFailed:
+            return NSLocalizedString("Archive destruction failed", comment: "")
+        case .bundleVerificationFailed:
+            return NSLocalizedString("Bundle verification failed", comment: "")
+        case .carrierBundleCopyFailed:
+            return NSLocalizedString("Carrier bundle copy failed", comment: "")
+        case .carrierBundleDirectoryCreationFailed:
+            return NSLocalizedString("Carrier bundle directory creation failed", comment: "")
+        case .carrierBundleMissingSupportedSims:
+            return NSLocalizedString("Carrier bundle missing supported sims", comment: "")
+        case .commCenterNotificationFailed:
+            return NSLocalizedString("Comm center notification failed", comment: "")
+        case .containerCreationFailed:
+            return NSLocalizedString("Container creation failed", comment: "")
+        case .containerPownFailed:
+            return NSLocalizedString("Container pown failed", comment: "")
+        case .containerRemovableFailed:
+            return NSLocalizedString("Container removable failed", comment: "")
+        case .embeddedProfileInstallFailed:
+            return NSLocalizedString("Embedded profile install failed", comment: "")
+        case .executableTwiddleFailed:
+            return NSLocalizedString("Executable twiddle failed", comment: "")
+        case .existenceCheckFailed:
+            return NSLocalizedString("Existence check failed", comment: "")
+        case .installMapUpdateFailed:
+            return NSLocalizedString("Install map update failed", comment: "")
+        case .manifestCaptureFailed:
+            return NSLocalizedString("Manifest capture failed", comment: "")
+        case .mapGenerationFailed:
+            return NSLocalizedString("Map generation failed", comment: "")
+        case .missingBundleExecutable:
+            return NSLocalizedString("Missing bundle executable", comment: "")
+        case .missingBundleIdentifier:
+            return NSLocalizedString("Missing bundle identifier", comment: "")
+        case .missingBundlePath:
+            return NSLocalizedString("Missing bundle path", comment: "")
+        case .missingContainer:
+            return NSLocalizedString("Missing container", comment: "")
+        case .notificationFailed:
+            return NSLocalizedString("Notification failed", comment: "")
+        case .packageExtractionFailed:
+            return NSLocalizedString("Package extraction failed", comment: "")
+        case .packageInspectionFailed:
+            return NSLocalizedString("Package inspection failed", comment: "")
+        case .packageMoveFailed:
+            return NSLocalizedString("Package move failed", comment: "")
+        case .pathConversionFailed:
+            return NSLocalizedString("Path conversion failed", comment: "")
+        case .restoreContainerFailed:
+            return NSLocalizedString("Restore container failed", comment: "")
+        case .seatbeltProfileRemovableFailed:
+            return NSLocalizedString("Seatbelt profile removable failed", comment: "")
+        case .stageCreationFailed:
+            return NSLocalizedString("Stage creation failed", comment: "")
+        case .symlinkFailed:
+            return NSLocalizedString("Symbolic link failed", comment: "")
+        case .unknownCommand:
+            return NSLocalizedString("Unknown command", comment: "")
+        case .itunesArtworkCaptureFailed:
+            return NSLocalizedString("Artwork capture failed", comment: "")
+        case .itunesMetadataCaptureFailed:
+            return NSLocalizedString("Metadata capture failed", comment: "")
+        case .deviceOSVersionTooLow:
+            return NSLocalizedString("Device OS version too low", comment: "")
+        case .deviceFamilyNotSupported:
+            return NSLocalizedString("Device family not supported", comment: "")
+        case .packagePatchFailed:
+            return NSLocalizedString("Package patch failed", comment: "")
+        case .incorrectArchitecture:
+            return NSLocalizedString("Incorrect architecture", comment: "")
+        case .pluginCopyFailed:
+            return NSLocalizedString("Plugin copy failed", comment: "")
+        case .breadcrumbFailed:
+            return NSLocalizedString("Breadcrumb failed", comment: "")
+        case .breadcrumbUnlockFailed:
+            return NSLocalizedString("Breadcrumb unlock failed", comment: "")
+        case .geojsonCaptureFailed:
+            return NSLocalizedString("GEOJSON capture failed", comment: "")
+        case .newsstandArtworkCaputureFailed:
+            return NSLocalizedString("Newsstand artwork caputure failed", comment: "")
+        case .missingCommand:
+            return NSLocalizedString("Missing command", comment: "")
+        case .notEntitled:
+            return NSLocalizedString("Not entitled", comment: "")
+        case .missingPackagePath:
+            return NSLocalizedString("Missing package path", comment: "")
+        case .missingContainerPath:
+            return NSLocalizedString("Missing container path", comment: "")
+        case .missingApplicationIdentifier:
+            return NSLocalizedString("Missing application identifier", comment: "")
+        case .missingAttributeValue:
+            return NSLocalizedString("Missing attribute value", comment: "")
+        case .lookupFailed:
+            return NSLocalizedString("Lookup failed", comment: "")
+        case .dictionaryCreationFailed:
+            return NSLocalizedString("Dictionary creation failed", comment: "")
+        case .installProhibited:
+            return NSLocalizedString("Install prohibited", comment: "")
+        case .uninstallProhibited:
+            return NSLocalizedString("Uninstall prohibited", comment: "")
+        case .missingBundleVersion:
+            return NSLocalizedString("Missing bundle version", comment: "")
+        case .unknown:
+            return NSLocalizedString("Unknown error", comment: "")
+        case .deallocatedClient:
+            return NSLocalizedString("Deallocated client", comment: "")
+        }
+    }
 }
 
 public struct InstallationProxyStatusError {
@@ -2729,7 +2868,68 @@ public enum FileConduitError: Int32, Error {
     case AFC_E_FORCE_SIGNED_TYPE     = -1
 }
 
-
+extension FileConduitError : LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .AFC_E_UNKNOWN_ERROR:
+            return NSLocalizedString("Unknown error", comment: "")
+        case .AFC_E_OP_HEADER_INVALID:
+            return NSLocalizedString("Header invalid", comment: "")
+        case .AFC_E_NO_RESOURCES:
+            return NSLocalizedString("No resources", comment: "")
+        case .AFC_E_READ_ERROR:
+            return NSLocalizedString("Read error", comment: "")
+        case .AFC_E_WRITE_ERROR:
+            return NSLocalizedString("Write error", comment: "")
+        case .AFC_E_UNKNOWN_PACKET_TYPE:
+            return NSLocalizedString("Unknown packet type", comment: "")
+        case .AFC_E_INVALID_ARG:
+            return NSLocalizedString("Invalid argument", comment: "")
+        case .AFC_E_OBJECT_NOT_FOUND:
+            return NSLocalizedString("Object not found", comment: "")
+        case .AFC_E_OBJECT_IS_DIR:
+            return NSLocalizedString("Object is a directory", comment: "")
+        case .AFC_E_PERM_DENIED:
+            return NSLocalizedString("Permission denied", comment: "")
+        case .AFC_E_SERVICE_NOT_CONNECTED:
+            return NSLocalizedString("Service not connected", comment: "")
+        case .AFC_E_OP_TIMEOUT:
+            return NSLocalizedString("Timeout", comment: "")
+        case .AFC_E_TOO_MUCH_DATA:
+            return NSLocalizedString("Too much data", comment: "")
+        case .AFC_E_END_OF_DATA:
+            return NSLocalizedString("End of data", comment: "")
+        case .AFC_E_OP_NOT_SUPPORTED:
+            return NSLocalizedString("Not supported", comment: "")
+        case .AFC_E_OBJECT_EXISTS:
+            return NSLocalizedString("Object exists", comment: "")
+        case .AFC_E_OBJECT_BUSY:
+            return NSLocalizedString("Object busy", comment: "")
+        case .AFC_E_NO_SPACE_LEFT:
+            return NSLocalizedString("No space left", comment: "")
+        case .AFC_E_OP_WOULD_BLOCK:
+            return NSLocalizedString("Operation would block", comment: "")
+        case .AFC_E_IO_ERROR:
+            return NSLocalizedString("I/O error", comment: "")
+        case .AFC_E_OP_INTERRUPTED:
+            return NSLocalizedString("Operation interrupted", comment: "")
+        case .AFC_E_OP_IN_PROGRESS:
+            return NSLocalizedString("Operation in progress", comment: "")
+        case .AFC_E_INTERNAL_ERROR:
+            return NSLocalizedString("Internal error", comment: "")
+        case .AFC_E_MUX_ERROR:
+            return NSLocalizedString("Multiplexing error", comment: "")
+        case .AFC_E_NO_MEM:
+            return NSLocalizedString("No memory", comment: "")
+        case .AFC_E_NOT_ENOUGH_DATA:
+            return NSLocalizedString("Not enough data", comment: "")
+        case .AFC_E_DIR_NOT_EMPTY:
+            return NSLocalizedString("Directory not empty", comment: "")
+        case .AFC_E_FORCE_SIGNED_TYPE:
+            return NSLocalizedString("Trickery to force signed type inferrence", comment: "")
+        }
+    }
+}
 
 // MARK: Miscellanea
 
