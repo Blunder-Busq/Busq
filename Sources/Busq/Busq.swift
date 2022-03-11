@@ -731,13 +731,16 @@ public final class InstallationProxy {
     }
 
     /// Install an application on the device.
-    public func install(pkgPath: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func install(pkgPath: String, options: Plist, callback: ( (Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
-        let rawError = instproxy_install(rawValue, pkgPath, options.rawValue, { (command, status, userData) in
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
+
+        let rawError = instproxy_install(rawValue, pkgPath, options.rawValue, callback == nil ? nil : { (command, status, userData) in
             guard let userData = userData else {
                 return
             }
@@ -745,24 +748,26 @@ public final class InstallationProxy {
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
     /// Upgrade an application on the device. This function is nearly the same as `install`; the difference is that the installation progress on the device is faster if the application is already installed.
-    public func upgrade(pkgPath: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func upgrade(pkgPath: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
         let rawError = instproxy_upgrade(rawValue, pkgPath, options.rawValue, { (command, status, userData) in
             guard let userData = userData else {
                 return
@@ -771,40 +776,43 @@ public final class InstallationProxy {
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
     /// Uninstall an application from the device.
-    public func uninstall(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func uninstall(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
         let rawError = instproxy_uninstall(rawValue, appID, options.rawValue, { (command, status, userData) in
             guard let userData = userData else {
                 return
             }
 
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
+            
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
@@ -827,12 +835,14 @@ public final class InstallationProxy {
     }
 
     /// Archive an application on the device. This function tells the device to make an archive of the specified application. This results in the device creating a ZIP archive in the 'ApplicationArchives' directory and uninstalling the application.
-    public func archive(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func archive(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
         let rawError = instproxy_archive(rawValue, appID, options.rawValue, { (command, status, userData) in
             guard let userData = userData else {
                 return
@@ -841,24 +851,26 @@ public final class InstallationProxy {
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
     /// Restore a previously archived application on the device. This function is the counterpart to `archive`.
-    public func restore(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func restore(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
         let rawError = instproxy_restore(rawValue, appID, options.rawValue, { (command, status, userData) in
             guard let userData = userData else {
                 return
@@ -867,24 +879,26 @@ public final class InstallationProxy {
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
     /// Removes a previously archived application from the device. This function removes the ZIP archive from the 'ApplicationArchives' directory.
-    public func removeArchive(appID: String, options: Plist, callback: @escaping (Plist?, Plist?) -> Void) throws -> Disposable {
+    public func removeArchive(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
         }
 
-        let userData = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        let userData = callback.flatMap { callback in
+            Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
+        }
         let rawError = instproxy_remove_archive(rawValue, appID, options.rawValue, { (command, status, userData) in
             guard let userData = userData else {
                 return
@@ -893,14 +907,14 @@ public final class InstallationProxy {
             let wrapper = Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.fromOpaque(userData)
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
-        }, userData.toOpaque())
+        }, userData?.toOpaque())
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
-            userData.release()
+            userData?.release()
             throw error
         }
 
         return Dispose {
-            userData.release()
+            userData?.release()
         }
     }
 
@@ -2340,39 +2354,6 @@ public extension InstalledAppInfo {
     var IsHostBackupEligible: Bool? { dict["IsHostBackupEligible"]?.bool }
     var IsUpgradeable: Bool? { dict["IsUpgradeable"]?.bool }
     var IsAppClip: Bool? { dict["IsAppClip"]?.bool }
-}
-
-/// UsageDescription keys
-public extension InstalledAppInfo {
-    var NSAppleEventsUsageDescription: String? { dict["NSAppleEventsUsageDescription"]?.string }
-    var NSBluetoothUsageDescription: String? { dict["NSBluetoothUsageDescription"]?.string }
-    var NSLocationAlwaysUsageDescription: String? { dict["NSLocationAlwaysUsageDescription"]?.string }
-    var NSVideoSubscriberAccountUsageDescription: String? { dict["NSVideoSubscriberAccountUsageDescription"]?.string }
-    var NSFocusStatusUsageDescription: String? { dict["NSFocusStatusUsageDescription"]?.string }
-    var NFCReaderUsageDescription: String? { dict["NFCReaderUsageDescription"]?.string }
-    var NSHomeKitUsageDescription: String? { dict["NSHomeKitUsageDescription"]?.string }
-    var NSRemindersUsageDescription: String? { dict["NSRemindersUsageDescription"]?.string }
-    var NSLocationTemporaryUsageDescriptionDictionary: String? { dict["NSLocationTemporaryUsageDescriptionDictionary"]?.string }
-    var NSSiriUsageDescription: String? { dict["NSSiriUsageDescription"]?.string }
-    var NSHealthShareUsageDescription: String? { dict["NSHealthShareUsageDescription"]?.string }
-    var NSHealthUpdateUsageDescription: String? { dict["NSHealthUpdateUsageDescription"]?.string }
-    var NSSpeechRecognitionUsageDescription: String? { dict["NSSpeechRecognitionUsageDescription"]?.string }
-    var NSLocationUsageDescription: String? { dict["NSLocationUsageDescription"]?.string }
-    var NSMotionUsageDescription: String? { dict["NSMotionUsageDescription"]?.string }
-    var NSLocalNetworkUsageDescription: String? { dict["NSLocalNetworkUsageDescription"]?.string }
-    var NSAppleMusicUsageDescription: String? { dict["NSAppleMusicUsageDescription"]?.string }
-    var NSLocationAlwaysAndWhenInUseUsageDescription: String? { dict["NSLocationAlwaysAndWhenInUseUsageDescription"]?.string }
-    var NSUserTrackingUsageDescription: String? { dict["NSUserTrackingUsageDescription"]?.string }
-    var NSBluetoothAlwaysUsageDescription: String? { dict["NSBluetoothAlwaysUsageDescription"]?.string }
-    var NSFaceIDUsageDescription: String? { dict["NSFaceIDUsageDescription"]?.string }
-    var NSBluetoothPeripheralUsageDescription: String? { dict["NSBluetoothPeripheralUsageDescription"]?.string }
-    var NSCalendarsUsageDescription: String? { dict["NSCalendarsUsageDescription"]?.string }
-    var NSContactsUsageDescription: String? { dict["NSContactsUsageDescription"]?.string }
-    var NSMicrophoneUsageDescription: String? { dict["NSMicrophoneUsageDescription"]?.string }
-    var NSPhotoLibraryAddUsageDescription: String? { dict["NSPhotoLibraryAddUsageDescription"]?.string }
-    var NSPhotoLibraryUsageDescription: String? { dict["NSPhotoLibraryUsageDescription"]?.string }
-    var NSCameraUsageDescription: String? { dict["NSCameraUsageDescription"]?.string }
-    var NSLocationWhenInUseUsageDescription: String? { dict["NSLocationWhenInUseUsageDescription"]?.string }
 }
 
 private extension UInt32 {

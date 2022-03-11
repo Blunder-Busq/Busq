@@ -665,7 +665,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_install(instproxy_client_t clie
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "PackagePath", plist_new_string(pkg_path));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+    res = instproxy_perform_command(client, command, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
 
 	plist_free(command);
 
@@ -682,7 +682,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_upgrade(instproxy_client_t clie
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "PackagePath", plist_new_string(pkg_path));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, user_data);
 
 	plist_free(command);
 
@@ -699,7 +699,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_uninstall(instproxy_client_t cl
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "ApplicationIdentifier", plist_new_string(appid));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+	res = instproxy_perform_command(client, command, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
 
 	plist_free(command);
 
@@ -732,7 +732,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_archive(instproxy_client_t clie
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "ApplicationIdentifier", plist_new_string(appid));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+	res = instproxy_perform_command(client, command, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
 
 	plist_free(command);
 
@@ -749,7 +749,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_restore(instproxy_client_t clie
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "ApplicationIdentifier", plist_new_string(appid));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+	res = instproxy_perform_command(client, command, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
 
 	plist_free(command);
 
@@ -766,7 +766,7 @@ LIBIMOBILEDEVICE_API instproxy_error_t instproxy_remove_archive(instproxy_client
 		plist_dict_set_item(command, "ClientOptions", plist_copy(client_options));
 	plist_dict_set_item(command, "ApplicationIdentifier", plist_new_string(appid));
 
-	res = instproxy_perform_command(client, command, INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
+	res = instproxy_perform_command(client, command, status_cb == NULL ? INSTPROXY_COMMAND_TYPE_SYNC : INSTPROXY_COMMAND_TYPE_ASYNC, status_cb, user_data);
 
 	plist_free(command);
 
