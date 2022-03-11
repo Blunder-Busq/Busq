@@ -10,11 +10,11 @@ class BusqTests: XCTestCase {
         //MobileDevice.debug = false
     }
 
-    func testDeviceConnection() async throws {
-        try await deviceConnectionTest()
+    func testDeviceConnection() throws {
+        try deviceConnectionTest()
     }
 
-    func deviceConnectionTest() async throws {
+    func deviceConnectionTest() throws {
         print("Getting device list…")
 
         // this throws an error on Linux, but just returns an empty array on macOS
@@ -23,10 +23,6 @@ class BusqTests: XCTestCase {
         print("Devices:", deviceInfos.count)
         for deviceInfo in deviceInfos {
             print("device:", deviceInfo.udid, "connectionType:", deviceInfo.connectionType)
-            if deviceInfo.connectionType == .network {
-                continue // skip wireless connections while testing for efficiency
-            }
-
             let device = try Device(udid: deviceInfo.udid, options: deviceInfo.connectionType == .network ? .network : .usbmux)
             print(" - handle:", try device.getHandle())
 
@@ -42,9 +38,9 @@ class BusqTests: XCTestCase {
              try testSyslogRelayClient(lfc)
             // try testFileRelayClient(lfc) // muxError
             // try testDebugServer(lfc) // seems to require manual start of the service
-
         }
     }
+
 
     func testLockdownClient(_ lfc: LockdownClient) throws {
         print(" - lockdown client:", try lfc.getName()) // “Bob's iPhone”
@@ -192,7 +188,6 @@ class BusqTests: XCTestCase {
     }
 
     func testInstallIPA(_ lfc: LockdownClient, _ url: URL) async throws {
-
         var expanded: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &expanded)
         XCTAssertTrue(exists, "file does not exists at: \(url.path)")
