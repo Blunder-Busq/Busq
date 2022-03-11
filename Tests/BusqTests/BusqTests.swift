@@ -43,11 +43,11 @@ class BusqTests: XCTestCase {
             try testAppList(lfc)
 
             try testInstallationProxy(lfc)
-            try testFileConduit(lfc) // AFC_E_MUX_ERROR
-            try testFileRelayClient(lfc)
-            try testHouseArrestClient(lfc)
-            try testSyslogRelayClient(lfc)
             try testSpringboardServiceClient(lfc)
+            // try testFileConduit(lfc) // AFC_E_MUX_ERROR
+            // try testHouseArrestClient(lfc)
+            // try testSyslogRelayClient(lfc)
+            // try testFileRelayClient(lfc) // muxerror
             // try testDebugServer(lfc) // seems to require manual start of the service
         }
     }
@@ -92,7 +92,14 @@ class BusqTests: XCTestCase {
 
     func testSpringboardServiceClient(_ lfc: LockdownClient) throws {
         let client = try lfc.createSpringboardServiceClient()
-        let _ = client
+        let wallpaper = try client.getHomeScreenWallpaperPNGData()
+        XCTAssertNotEqual(0, wallpaper.count)
+
+        let appIcon = try client.getIconPNGData(bundleIdentifier: "com.apple.AppStore")
+        XCTAssertNotEqual(0, appIcon.count) // 14071
+
+        let noAppIcon = try client.getIconPNGData(bundleIdentifier: "")
+        XCTAssertNotEqual(0, noAppIcon.count) // 9881 seems to be the blank icon
     }
 
     func testAppList(_ lfc: LockdownClient, type appType: ApplicationType = .any) throws {

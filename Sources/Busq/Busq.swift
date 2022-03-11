@@ -118,11 +118,14 @@ public final class LockdownService {
     }
 
     /// Frees memory of a service descriptor as returned by `lockdownd_start_service()`
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        lockdownd_service_descriptor_free(rawValue)
+        let rawError = lockdownd_service_descriptor_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in lockdownd_service_descriptor_free: \(rawError)")
+        }
     }
 }
 
@@ -213,6 +216,18 @@ public final class LockdownClient {
 
         return String(cString: type)
     }
+
+    /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
+    deinit {
+        guard let rawValue = self.rawValue else {
+            return
+        }
+        let rawError = lockdownd_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in lockdownd_client_free: \(rawError)")
+        }
+    }
+
 }
 
 public extension LockdownClient {
@@ -380,14 +395,6 @@ extension LockdownClient {
         return String(cString: udid)
 
     }
-
-    /// Closes the lockdownd client session if one is running and frees up the `lockdownd_client` struct.
-    public func dealloc() {
-        guard let lockdown = self.rawValue else {
-            return
-        }
-        lockdownd_client_free(lockdown)
-    }
 }
 
 
@@ -526,11 +533,14 @@ public final class DeviceConnection {
     }
 
     /// Disconnect from the device and clean up the connection structure.
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        idevice_disconnect(rawValue)
+        let rawError = idevice_disconnect(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in idevice_disconnect: \(rawError)")
+        }
     }
 }
 
@@ -1496,7 +1506,7 @@ public final class InstallationProxyOptions {
     }
 
     /// Frees `client_options` plist.
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
@@ -1506,7 +1516,6 @@ public final class InstallationProxyOptions {
 
 
 // MARK: DebugServer
-
 
 /// Communicate with debugserver on the device.
 public final class DebugServer {
@@ -1722,11 +1731,14 @@ public final class DebugServer {
     }
 
     /// Disconnects a debugserver client from the device and frees up the debugserver client data.
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        debugserver_client_free(rawValue)
+        let rawError = debugserver_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in debugserver_client_free: \(rawError)")
+        }
         self.rawValue = nil
     }
 }
@@ -1789,11 +1801,14 @@ public final class DebugServerCommand {
     }
 
     /// Frees memory of command object.
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        debugserver_command_free(rawValue)
+        let rawError = debugserver_command_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in debugserver_command_free: \(rawError)")
+        }
     }
 }
 
@@ -1873,13 +1888,13 @@ public final class FileRelayClient {
     }
 
     /// Disconnects a `file_relay` client from the device and frees up the `file_relay` client data.
-    public func dealloc() throws {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
         let rawError = file_relay_client_free(rawValue)
-        if let error = FileRelayError(rawValue: rawError.rawValue) {
-            throw error
+        if rawError.rawValue != 0 {
+            print("error in file_relay_client_free: \(rawError)")
         }
     }
 }
@@ -1978,11 +1993,14 @@ public final class ScreenshotService {
         return Data(buffer: buffer)
     }
     
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        screenshotr_client_free(rawValue)
+        let rawError = screenshotr_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in screenshotr_client_free: \(rawError)")
+        }
     }
 }
 
@@ -2104,11 +2122,14 @@ public final class SyslogRelayClient {
     }
 
     /// Disconnects a `syslog_relay` client from the device and frees up the `syslog_relay` client data.
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        syslog_relay_client_free(rawValue)
+        let rawError = syslog_relay_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in syslog_relay_client_free: \(rawError)")
+        }
     }
 }
 
@@ -2237,14 +2258,14 @@ public final class SpringboardServiceClient {
         return Data(buffer: buffer)
     }
 
-    public func dealloc() throws {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
 
         let rawError = sbservices_client_free(rawValue)
-        if let error = SpringboardError(rawValue: rawError.rawValue) {
-            throw error
+        if rawError.rawValue != 0 {
+            print("error in sbservices_client_free: \(rawError)")
         }
         self.rawValue = nil
     }
@@ -2339,11 +2360,14 @@ public final class HouseArrestClient {
         return Plist(rawValue: result)
     }
 
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        house_arrest_client_free(rawValue)
+        let rawError = house_arrest_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in house_arrest_client_free: \(rawError)")
+        }
         self.rawValue = nil
     }
 }
@@ -2459,7 +2483,7 @@ public final class FileConduit {
 
         var handle: UInt64 = 0
 
-        let rawError = afc_file_open(rawValue, filename, afc_file_mode_t(fileMode.rawValue), &handle)
+        let rawError = afc_file_open(rawValue, filename, afc_file_mode_t(.init(coercing: fileMode.rawValue)), &handle)
         if let error = FileConduitError(rawValue: rawError.rawValue) {
             throw error
         }
@@ -2476,7 +2500,7 @@ public final class FileConduit {
     }
 
     public func fileLock(handle: UInt64, operation: FileConduitLockOp) throws {
-        let rawError = afc_file_lock(rawValue, handle, afc_lock_op_t(operation.rawValue))
+        let rawError = afc_file_lock(rawValue, handle, afc_lock_op_t(.init(coercing: operation.rawValue)))
         if let error = FileConduitError(rawValue: rawError.rawValue) {
             throw error
         }
@@ -2598,7 +2622,7 @@ public final class FileConduit {
     }
 
     public func makeLink(linkType: FileConduitLinkType, target: String, linkName: String) throws {
-        let rawError = afc_make_link(rawValue, afc_link_type_t(linkType.rawValue), target, linkName)
+        let rawError = afc_make_link(rawValue, afc_link_type_t(.init(coercing: linkType.rawValue)), target, linkName)
         if let error = FileConduitError(rawValue: rawError.rawValue) {
             throw error
         }
@@ -2632,11 +2656,14 @@ public final class FileConduit {
         return String(cString: value)
     }
 
-    public func dealloc() {
+    deinit {
         guard let rawValue = self.rawValue else {
             return
         }
-        afc_client_free(rawValue)
+        let rawError = afc_client_free(rawValue)
+        if rawError.rawValue != 0 {
+            print("error in afc_client_free: \(rawError)")
+        }
         self.rawValue = nil
     }
 }
