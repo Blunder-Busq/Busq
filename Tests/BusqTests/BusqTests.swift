@@ -81,14 +81,16 @@ class BusqTests: XCTestCase {
             // recompressing the zip is slower, but leads to a faster app transfer time, so it is probably worth it
             let recompress: Bool = true
 
-            let signStart = CFAbsoluteTimeGetCurrent()
+            let now = { Date().timeIntervalSinceReferenceDate }
+
+            let signStart = now()
             let signedIPA = try await FileManager.default.signIPA(sourceURL, identity: identity, teamID: teamID, recompress: recompress)
-            let signEnd = CFAbsoluteTimeGetCurrent()
+            let signEnd = now()
             print("signIPA time:", signEnd - signStart) // recompress=true: 17.81 recompress=false: 12.56
 
-            let installStart = CFAbsoluteTimeGetCurrent()
+            let installStart = now()
             try await lfc.installApp(from: signedIPA)
-            let installEnd = CFAbsoluteTimeGetCurrent()
+            let installEnd = now()
             print("sideloadApp time:", installEnd - installStart) // recompress=true: 0.95 recompress=false: 1.37
         }
     }
