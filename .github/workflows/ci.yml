@@ -30,7 +30,9 @@ jobs:
       - name: Build
         run: xcrun swift build
       - name: Run Tests
-        run: xcodebuild test -configuration Debug -scheme "Busq" -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 13"
+        run: |
+          sed -i '' 's/let excludeCLI = false/let excludeCLI = true/' Package.swift
+          xcodebuild test -configuration Debug -scheme "Busq" -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 13"
 
   ci-linux:
     runs-on: ubuntu-latest 

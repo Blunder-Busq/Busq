@@ -20,7 +20,7 @@ let pathsep = "\\"
 let pathsep = "/"
 #endif
 
-let package = Package(
+var package = Package(
     name: "Busq",
     platforms: [ .macOS(.v11), .iOS(.v14) ],
     products: [
@@ -35,10 +35,6 @@ let package = Package(
         ),
     ],
     targets: [
-        .executableTarget(name: "BusqTool", dependencies: [
-            "Busq",
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        ]),
         .target(
             name: "Busq",
             dependencies: [
@@ -250,7 +246,24 @@ let package = Package(
         ),
         .testTarget(name: "BusqTests", dependencies: [
             "Busq",
+        ]),
+        .executableTarget(name: "BusqTool", dependencies: [
+            "Busq",
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ])
-        
     ]
 )
+
+// when testing on iOS simulator, the presence of the BusqTool target causes a failure with:
+// “xcodebuild: error: Scheme Busq is not currently configured for the test action.”
+// so we pre-process by making this true and removing the target
+let excludeCLI = false
+
+if excludeCLI {
+    package.targets = package.targets.filter({
+        $0.type != .executable
+    })
+    package.products = package.products.filter({
+        $0.name != "busq"
+    })
+}
