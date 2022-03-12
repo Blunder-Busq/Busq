@@ -266,6 +266,70 @@ public extension LockdownClient {
     }
 }
 
+extension LockdownClient {
+
+    /// Sideload the app.
+    /// - Parameters:
+    ///   - url: a file path to the compressed .ipa file or an expanded folder. The app must already be signed.
+    ///   - escrow: whether to use an escrow bag when creating the file conduit and installation proxy
+    ///   - stagingFolder: the destination staging folder, defaulting to "PublicStaging"
+    ///   - packageType: the type of the package; only "Developer" is currently supported
+    ///   - cleanup: whether to remove the staging app from the device after installation (regardless of success)
+    public func installApp(from url: URL, escrow: Bool = false, stagingFolder: String = "PublicStaging", packageType: String? = "Developer", cleanup: Bool = true) async throws {
+        var expanded: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &expanded)
+        if exists == false {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        let client = try self.createFileConduit(escrow: escrow)
+        try client.makeDirectory(path: stagingFolder)
+        defer {
+            do {
+                if cleanup {
+                    try client.removePathAndContents(path: stagingFolder)
+                }
+            } catch {
+                print("error cleaning up path:", error)
+            }
+        }
+
+        let destPath = stagingFolder + "/" + url.lastPathComponent // e.g. PublicStaging/Signal.ipa
+
+        // make sure there is nothing already in the staging folder
+        try? client.removePathAndContents(path: destPath) // ignore "Object not found" erors
+
+        if expanded.boolValue == false { // a direct .ipa file
+            let handle = try client.fileOpen(filename: destPath, fileMode: .wrOnly)
+            try client.fileWrite(handle: handle, fileURL: url) { complete in
+                //print("progress:", complete)
+            }
+            try client.fileClose(handle: handle)
+        } else {
+            try client.copyFolder(at: url, to: destPath)
+        }
+
+        let iproxy = try self.createInstallationProxy(escrow: escrow)
+
+        var dict: [String: Plist] = [:]
+        if let packageType = packageType {
+            dict["PackageType"] = Plist(string: packageType)
+        }
+
+        // TODO:
+        // "CFBundleIdentifier": nil,
+        // "iTunesMetadata": nil,
+        // "ApplicationSINF": nil,
+
+        print("installing path:", destPath)
+
+        // if unsigned, this will throw: applicationVerificationFailed
+        let disposable = try iproxy.install(pkgPath: destPath, options: Plist(dictionary: dict), callback: nil)
+        disposable.dispose()
+    }
+
+}
+
 
 /// Accessors for various properties.
 extension LockdownClient {

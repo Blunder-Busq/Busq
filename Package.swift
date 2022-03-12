@@ -25,10 +25,20 @@ let package = Package(
     platforms: [ .macOS(.v11), .iOS(.v14) ],
     products: [
         .library(name: "Busq", targets: ["Busq"]),
+        .executable(name: "busq", targets: ["BusqTool"]),
     ],
     dependencies: [
+        .package(
+          name: "swift-argument-parser",
+          url: "https://github.com/apple/swift-argument-parser",
+          .upToNextMinor(from: "1.0.3")
+        ),
     ],
     targets: [
+        .executableTarget(name: "BusqTool", dependencies: [
+            "Busq",
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        ]),
         .target(
             name: "Busq",
             dependencies: [

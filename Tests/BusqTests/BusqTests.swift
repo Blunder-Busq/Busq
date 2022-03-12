@@ -100,54 +100,6 @@ class BusqTests: XCTestCase {
 
     }
 
-    func installSignedIPA(_ lfc: LockdownClient, _ url: URL) async throws {
-        var expanded: ObjCBool = false
-        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &expanded)
-        XCTAssertTrue(exists, "file does not exists at: \(url.path)")
-
-        //let destFolder = "/Busq/" + UUID().uuidString
-        let destFolder = "PublicStaging"
-
-        let client = try lfc.createFileConduit(escrow: false)
-        try client.makeDirectory(path: destFolder)
-        defer {
-            do {
-                print("cleaning up folder:", destFolder)
-                try client.removePathAndContents(path: destFolder)
-            } catch {
-                print("error cleaning up path:", error)
-            }
-        }
-
-        let destPath = destFolder + "/" + url.lastPathComponent
-
-        if expanded.boolValue == false { // a direct .ipa file
-            let handle = try client.fileOpen(filename: destPath, fileMode: .wrOnly)
-            try client.fileWrite(handle: handle, fileURL: url) { complete in
-                //print("progress:", complete)
-            }
-            try client.fileClose(handle: handle)
-        } else {
-            try client.copyFolder(at: url, to: destPath)
-        }
-
-        let iproxy = try lfc.createInstallationProxy(escrow: false)
-
-        let opts = Plist(dictionary: expanded.boolValue == false ? [
-            :
-        ] : [
-            "PackageType": Plist(string: "Developer"),
-            // "CFBundleIdentifier": nil,
-            // "iTunesMetadata": nil,
-            // "ApplicationSINF": nil,
-        ])
-
-        print("installing path:", destPath)
-
-        // if unsigned, this will throw: applicationVerificationFailed
-        let _ = try iproxy.install(pkgPath: destPath, options: opts, callback: nil)
-    }
-
     func testHouseArrestClient(_ lfc: LockdownClient) throws {
         let client = try lfc.createHouseArrestClient(escrow: true)
         let _ = client
@@ -202,7 +154,7 @@ extension FileManager {
     ///   - teamID: the team identifier for signing
     ///   - recompress: whether to re-zip the files after signing or just return the extracted URL
     /// - Returns: the resulting signed artifact
-    public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool = false) async throws -> URL {
+    public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) async throws -> URL {
         #if !os(macOS)
         throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
         #else
@@ -216,7 +168,49 @@ extension FileManager {
         // extract the file
         try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/unzip")).execute(withArguments: ["-o", "-q", url.path, "-d", outputDir.path])
 
+        try await signFolder(outputDir, identity: identity, teamID: teamID)
 
+        if !recompress {
+            // just upload the output folder directly
+            return outputDir
+        } else {
+            // repackage as an IPA so we can just send a single file
+            // surprisingly, this seems to be slower than sending the expanded ipa directly
+            let repackaged = url.deletingPathExtension().appendingPathExtension("signed.ipa")
+            print("re-packaging signed ipa to:", repackaged.path)
+
+            // zip cannot trim path components unless it is in the current directoy;
+            // so we need to create a bogus script and execute that instead
+            let script = """
+            #!/bin/sh
+            cd '\(outputDir.path)'
+            /usr/bin/zip -ru '\(repackaged.path)' Payload
+            """
+
+            let zipScript = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory())).appendingPathExtension("sh")
+            try script.write(to: zipScript, atomically: true, encoding: .utf8)
+            try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
+
+            print("zipScript:", zipScript.path)
+            try await NSUserUnixTask(url: URL(fileURLWithPath: zipScript.path)).execute(withArguments: [])
+            return repackaged
+        }
+        #endif
+    }
+
+    /// Codesigns the nested `.app` and `.framework` folders in the given directory.
+    ///
+    /// - Parameters:
+    ///   - outputDir: the folder to scan
+    ///   - identity: the identity to pass to the `codesign` tool, which must be available in the keychain
+    ///   - teamID: the team ID for signing
+    ///   - keychain: the keychain name to use (optional)
+    ///   - verify: whether to verify the code signatures after signing
+    ///   - overwrite: whether to overrite any signature that may exist; otherwise, an error will occur if the code is already signed
+    func signFolder(_ outputDir: URL, identity: String, teamID: String, keychain: String? = nil, verify: Bool = true, overwrite: Bool = true) async throws {
+        #if !os(macOS)
+        throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
+        #else
         // get the "Payload" subfolder
         guard let pathEnumerator = self.enumerator(at: outputDir, includingPropertiesForKeys: nil, options: .skipsHiddenFiles, errorHandler: { url, error in
             print("error enumerating:", url, error)
@@ -225,8 +219,7 @@ extension FileManager {
             throw CocoaError(.fileReadUnknown)
         }
 
-        // get the list of framework and app paths to sign
-        // “If your app contains nested code, such as an app extension, a framework, or a bundled watchOS app, sign each item separately, starting with the most deeply nested executable, and working your way out; then sign your main app last. Don’t include entitlements or profiles when signing frameworks. Including them produces an invalid code signature.”
+        // Get the list of framework and app paths to sign, starting from the shallowest to the depeest
         let signPaths = Array(pathEnumerator)
             .compactMap { $0 as? URL }
             .filter { $0.pathExtension == "app" || $0.pathExtension == "framework" }
@@ -265,17 +258,21 @@ extension FileManager {
         </plist>
         """
 
-        let xcentPath = URL(fileURLWithPath: "entitlements.xcent", isDirectory: false, relativeTo: baseDir)
+        let entitlementsDir = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true))
+        try createDirectory(at: entitlementsDir, withIntermediateDirectories: true)
+
+        let xcentPath = URL(fileURLWithPath: "entitlements.xcent", isDirectory: false, relativeTo: entitlementsDir)
+
         try xcent.write(to: xcentPath, atomically: false, encoding: .utf8)
 
 
-        for signPath in signPaths.reversed() { // need to sign the deepest elements first
+        // Iterate through the reverse apps/frameworks paths (i.e., start with the deepest), since signing a child after a parent will invalidate the parent's signature: “If your app contains nested code, such as an app extension, a framework, or a bundled watchOS app, sign each item separately, starting with the most deeply nested executable, and working your way out; then sign your main app last. Don’t include entitlements or profiles when signing frameworks. Including them produces an invalid code signature.”
+        for signPath in signPaths.reversed() {
 
             // sign the code
             print("signing:", signPath.path)
 
             var args = [
-                "--force",
                 "--sign", identity,
                 "--timestamp=none",
                 "--generate-entitlement-der"
@@ -288,44 +285,36 @@ extension FileManager {
 
             args += ["--entitlements", xcentPath.path]
 
+            if let keychain = keychain {
+                args += ["--keychain", keychain]
+            }
+
+            if overwrite {
+                args += ["--force"]
+            }
+
+            args += ["--strict"]
+
             args += [signPath.path]
 
             try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: args)
-
-            // codesign -s "${SIGNATURE}" -f --preserve-metadata --generate-entitlement-der ./Payload/*.app
         }
 
-        for signPath in signPaths { // verify all
-            try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: ["-vvvv", "--verify", signPath.path])
-        }
+        if verify {
+            for signPath in signPaths { // verify all
+                var verifyArgs = ["-vvvv", "--verify"]
+                verifyArgs += ["--strict"]
+                verifyArgs += ["--deep"]
+                verifyArgs += ["--display"]
 
-        if !recompress {
-            // just upload the output folder directly
-            return outputDir
-        } else {
-            // repackage as an IPA so we can just send a single file
-            // surprisingly, this seems to be slower than sending the expanded ipa directly
-            let repackaged = url.deletingPathExtension().appendingPathExtension("signed.ipa")
-            print("re-packaging signed ipa to:", repackaged.path)
+                verifyArgs += [signPath.path]
 
-            // zip cannot trim path components unless it is in the current directoy;
-            // so we need to create a bogus script and execute that instead
-            let script = """
-            #!/bin/sh
-            cd '\(outputDir.path)'
-            /usr/bin/zip -ru '\(repackaged.path)' Payload
-            """
-
-            let zipScript = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory())).appendingPathExtension("sh")
-            try script.write(to: zipScript, atomically: true, encoding: .utf8)
-            try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
-
-            print("zipScript:", zipScript.path)
-            try await NSUserUnixTask(url: URL(fileURLWithPath: zipScript.path)).execute(withArguments: [])
-            return repackaged
+                try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: verifyArgs)
+            }
         }
         #endif
     }
 
-
 }
+
+
