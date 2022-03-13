@@ -1,4 +1,7 @@
 /**
+ Copyright The Blunder Busq Contributors
+ SPDX-License-Identifier: AGPL-3.0
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
@@ -30,10 +33,13 @@ import ArgumentParser
             TransmitFile.self,
             ReceiveFile.self,
             InstallApp.self,
+            UninstallApp.self,
+            ArchiveApp.self,
+            ListApps.self,
         ])
 
     struct Options: ParsableArguments {
-        @Option(name: [.long, .customShort("u")], help: "restrict results to specified udid(s).")
+        @Option(name: [.long, .customShort("u")], help: "restrict devices to specified udid(s).")
         var udids: [String] = []
 
         @Flag(name: [.long, .customShort("j")], help: "output as JSON.")
@@ -148,14 +154,46 @@ import ArgumentParser
 
             return results
         }
-
     }
 
-    static func format(_ result: Int, usingHex: Bool) -> String {
-        usingHex ? String(result, radix: 16)
-            : String(result)
-    }
+    /// Uploads the given URL to the specified remote path with the file conduit.
+    /// - Parameters:
+    ///   - url: the local file URL to transfer
+    ///   - remotePath: the remote file path the store the file; the parent folder must already exist
+    ///   - conduit: the FileConduit to use
+    ///   - progress: if true, show a progress bar in standard error
+    ///   - overwrite: if true, overwrite an existing file if it already exists
+    static func transmit(_ url: URL, to remotePath: String, conduit: FileConduit, progress: Bool, overwrite: Bool) throws {
+        if overwrite == false {
+            let destinationFileExists: Bool
+            do {
+                // attempt to open and close the file; if it exists, and we do not want to overwrite, the fail if it was successful
+                try conduit.fileClose(handle: conduit.fileOpen(filename: remotePath, fileMode: .rdOnly))
+                destinationFileExists = true
+            } catch {
+                // expected that it should fail if there is no such file
+                destinationFileExists = false
+            }
+            if destinationFileExists {
+                throw CocoaError(.fileWriteFileExists) // cannot overwrite
+            }
+        }
 
+        if progress {
+            //print("Sending:", url.path, "to:", remotePath) // , "on:", try conduit.getDeviceInfo())
+        }
+
+        let handle = try conduit.fileOpen(filename: remotePath, fileMode: .wrOnly)
+        defer { try? conduit.fileClose(handle: handle) }
+        let progressBar = progress ? ProgressBar(output: FileHandle.standardError) : nil
+        let info = url.lastPathComponent
+        try conduit.fileWrite(handle: handle, fileURL: url) { p in
+            progressBar?.displayProgress(count: Int(p * 1000), total: 1000, info: info)
+        }
+        if progress {
+            print("") // finish progress view
+        }
+    }
 
     struct ListDevices: ParsableCommand {
         static var configuration = CommandConfiguration(commandName: "list", abstract: "List available devices.")
@@ -207,6 +245,41 @@ import ArgumentParser
             try options.show(results, header: "Device list:", primaryKey: "UniqueDeviceID")
         }
     }
+
+    struct ListApps: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "apps", abstract: "List installed apps.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        @Option(name: [.long, .customShort("t")], help: "the app type (System, User, Any).")
+        var type: String = "User"
+
+        mutating func run() throws {
+            // var appList: [String: [String]] = [:] // TODO: JSON output
+
+            for deviceInfo in try options.getDeviceInfos() {
+                let device = try deviceInfo.createDevice()
+                let client = try device.createLockdownClient()
+                let iproxy = try client.createInstallationProxy(escrow: options.escrow)
+
+                let opts = Plist(dictionary: [
+                    "ApplicationType": Plist(string: type)
+                ])
+
+                let apps = try iproxy.browse(options: opts)
+                let iapps = apps.array?.map(InstalledAppInfo.init) ?? []
+
+                // appList[deviceInfo.udid] = apps
+                for app in iapps {
+                    if let appid = app.CFBundleIdentifier {
+                        print(appid)
+                    }
+                }
+            }
+
+        }
+    }
+
 
     /// List the contents of one or more folders in an iOS device.
     struct ListFolder: ParsableCommand {
@@ -275,10 +348,10 @@ import ArgumentParser
 
         @OptionGroup var options: BusqTool.Options
 
-        @Flag(name: [.long, .customShort("f")], help: "Overwrite existing file(s).")
+        @Flag(name: [.long, .customShort("f")], help: "overwrite existing file(s).")
         var overwrite = false
 
-        @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
+        @Flag(name: [.long, .customShort("p")], help: "show file transfer progress.")
         var progress = false
 
         // TODO
@@ -295,48 +368,21 @@ import ArgumentParser
             let _ = try options.runFileCommand(files) { conduit, arg in
                 let url = URL(fileURLWithPath: arg)
                 let remotePath = directory + "/" + url.lastPathComponent
-                if overwrite == false {
-                    let destinationFileExists: Bool
-                    do {
-                        // attempt to open and close the file; if it exists, and we do not want to overwrite, the fail if it was successful
-                        try conduit.fileClose(handle: conduit.fileOpen(filename: remotePath, fileMode: .rdOnly))
-                        destinationFileExists = true
-                    } catch {
-                        // expected that it should fail if there is no such file
-                        destinationFileExists = false
-                    }
-                    if destinationFileExists {
-                        throw CocoaError(.fileWriteFileExists) // cannot overwrite
-                    }
-                }
-
-                if progress {
-                    //print("Sending:", url.path, "to:", remotePath) // , "on:", try conduit.getDeviceInfo())
-                }
-
-                let handle = try conduit.fileOpen(filename: remotePath, fileMode: .wrOnly)
-                defer { try? conduit.fileClose(handle: handle) }
-                let progressBar = self.progress ? ProgressBar(output: FileHandle.standardError) : nil
-                let info = url.lastPathComponent
-                try conduit.fileWrite(handle: handle, fileURL: url) { p in
-                    progressBar?.displayProgress(count: Int(p * 1000), total: 1000, info: info)
-                }
-                if self.progress {
-                    print("") // finish progress view
-                }
+                try transmit(url, to: remotePath, conduit: conduit, progress: progress, overwrite: overwrite)
             }
         }
     }
+
 
     struct ReceiveFile: ParsableCommand {
         static var configuration = CommandConfiguration(commandName: "receive", abstract: "Copy file(s) from device.")
 
         @OptionGroup var options: BusqTool.Options
 
-        @Flag(name: [.long, .customShort("f")], help: "Overwrite existing file(s).")
+        @Flag(name: [.long, .customShort("f")], help: "overwrite existing file(s).")
         var overwrite = false
 
-        @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
+        @Flag(name: [.long, .customShort("p")], help: "show file transfer progress.")
         var progress = false
 
         // TODO
@@ -428,6 +474,68 @@ import ArgumentParser
         }
     }
 
+    struct UninstallApp: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "uninstall", abstract: "Uninstalls app(s) from device.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        var firstDeviceOnly = true
+
+        @Argument(help: "The app bundle ID(s) to uninstall.")
+        var bundleIDs: [String]
+
+        mutating func run() throws {
+            for deviceInfo in try options.getDeviceInfos() {
+                let device = try deviceInfo.createDevice()
+                let client = try device.createLockdownClient()
+                let iproxy = try client.createInstallationProxy(escrow: options.escrow)
+                for bundleID in bundleIDs {
+                    let _ = try iproxy.uninstall(appID: bundleID, options: Plist(dictionary: [:]), callback: nil)
+                }
+                if firstDeviceOnly {
+                    break // only connect to the first device
+                }
+            }
+        }
+    }
+
+    struct ArchiveApp: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "archive", abstract: "Archive app(s) on device.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        var firstDeviceOnly = true
+
+        @Flag(name: [.long, .customShort("s")], inversion: .prefixedNo, help: "skip uninstall.")
+        var skipUninstall = false
+
+        @Option(name: [.long, .customShort("a")], help: "archive type.")
+        var archiveType: String = "ApplicationOnly"
+
+        @Argument(help: "The app bundle ID(s) to archive.")
+        var bundleIDs: [String]
+
+        mutating func run() throws {
+            // The client options to use, as PLIST_DICT, or NULL. Valid options include: "SkipUninstall" -> Boolean "ArchiveType" -> "ApplicationOnly"
+            var opts: [String : Plist] = [:]
+            opts["SkipUninstall"] = Plist(bool: skipUninstall)
+            opts["ArchiveType"] = Plist(string: archiveType)
+
+
+            for deviceInfo in try options.getDeviceInfos() {
+                let device = try deviceInfo.createDevice()
+                let client = try device.createLockdownClient()
+                let iproxy = try client.createInstallationProxy(escrow: options.escrow)
+                for bundleID in bundleIDs {
+                    let _ = try iproxy.archive(appID: bundleID, options: Plist(dictionary: opts), callback: nil)
+                }
+                if firstDeviceOnly {
+                    break // only connect to the first device
+                }
+            }
+        }
+    }
+
     struct InstallApp: ParsableCommand {
         static var configuration = CommandConfiguration(commandName: "install", abstract: "Install app(s) from remote ipa.")
 
@@ -437,6 +545,15 @@ import ArgumentParser
 
         @Flag(name: [.long, .customShort("D")], inversion: .prefixedNo, help: "install as developer package.")
         var developer = true
+
+        @Flag(name: [.long, .customShort("x")], inversion: .prefixedNo, help: "skip transmit (assumes pe-existing remote path).")
+        var skipTransmit = false
+
+        @Flag(name: [.long, .customShort("U")], help: "upgrade installed app.")
+        var upgrade = false
+
+        @Flag(name: [.long, .customShort("p")], help: "show file transfer progress.")
+        var progress = false
 
         @Argument(help: "The ipa file(s) to install.")
         var ipa: [String]
@@ -452,8 +569,24 @@ import ArgumentParser
                 let device = try deviceInfo.createDevice()
                 let client = try device.createLockdownClient()
                 let iproxy = try client.createInstallationProxy(escrow: options.escrow)
+                let conduit = try client.createFileConduit(escrow: options.escrow)
+
                 for arg in ipa {
-                    let _ = try iproxy.install(pkgPath: arg, options: optsDict, callback: nil)
+                    var installPath = arg
+                    if skipTransmit == false {
+                        // first transmit the files to the remote location
+                        let argPath = URL(fileURLWithPath: arg)
+                        let dir = "/busq"
+                        try? conduit.makeDirectory(path: dir)
+                        installPath = dir + "/" + argPath.lastPathComponent
+                        try transmit(argPath, to: installPath, conduit: conduit, progress: progress, overwrite: true)
+                    }
+
+                    if upgrade {
+                        let _ = try iproxy.upgrade(pkgPath: installPath, options: optsDict, callback: nil)
+                    } else {
+                        let _ = try iproxy.install(pkgPath: installPath, options: optsDict, callback: nil)
+                    }
                 }
                 if firstDeviceOnly {
                     break // only connect to the first device

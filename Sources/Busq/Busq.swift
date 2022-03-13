@@ -1,4 +1,7 @@
 /**
+ Copyright The Blunder Busq Contributors
+ SPDX-License-Identifier: AGPL-3.0
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as
  published by the Free Software Foundation, either version 3 of the
@@ -1168,7 +1171,7 @@ public final class InstallationProxy {
         let userData = callback.flatMap { callback in
             Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
         }
-        let rawError = instproxy_uninstall(rawValue, appID, options.rawValue, { (command, status, userData) in
+        let rawError = instproxy_uninstall(rawValue, appID, options.rawValue, callback == nil ? nil : { (command, status, userData) in
             guard let userData = userData else {
                 return
             }
@@ -1212,7 +1215,7 @@ public final class InstallationProxy {
         let userData = callback.flatMap { callback in
             Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
         }
-        let rawError = instproxy_archive(rawValue, appID, options.rawValue, { (command, status, userData) in
+        let rawError = instproxy_archive(rawValue, appID, options.rawValue, callback == nil ? nil : { (command, status, userData) in
             guard let userData = userData else {
                 return
             }
@@ -1268,7 +1271,7 @@ public final class InstallationProxy {
         let userData = callback.flatMap { callback in
             Unmanaged<Wrapper<(Plist?, Plist?) -> Void>>.passRetained(Wrapper(value: callback))
         }
-        let rawError = instproxy_remove_archive(rawValue, appID, options.rawValue, { (command, status, userData) in
+        let rawError = instproxy_remove_archive(rawValue, appID, options.rawValue, callback == nil ? nil : { (command, status, userData) in
             guard let userData = userData else {
                 return
             }
