@@ -16,11 +16,20 @@ import Busq
 import Foundation
 import ArgumentParser
 
-@main
-struct Busq: ParsableCommand {
-    static var configuration = CommandConfiguration(
+/// A tool to interface with an iOS device.
+@main struct BusqTool: ParsableCommand {
+    static var configuration = CommandConfiguration(commandName: "busq",
         abstract: "A utility for interfacing with iOS devices.",
-        subcommands: [List.self, Ls.self, Cat.self])
+        subcommands: [
+            ListDevices.self,
+            ListFolderContents.self,
+            Concatinate.self,
+            RemoveFile.self,
+            RemoveFolder.self,
+            CreateFolder.self,
+            TransmitFile.self,
+            ReceiveFile.self,
+        ])
 
     struct Options: ParsableArguments {
         @Option(name: [.long, .customShort("u")], help: "restrict results to specified udid(s).")
@@ -29,13 +38,14 @@ struct Busq: ParsableCommand {
         @Flag(name: [.long, .customShort("j")], help: "output as JSON.")
         var json = false
 
-        @Flag(name: [.long, .customShort("b")], help: "brief output.")
-        var brief = false
+        @Flag(name: [.long, .customShort("J")], help: "output as pretty JSON.")
+        var jsonPretty = false
 
-        @Flag(name: [.long, .customShort("e")], help: "use escrow.")
+        @Flag(name: [.long, .customShort("e")], inversion: .prefixedNo, help: "use escrow.")
         var escrow = false
 
         /// Query the connected device infos, returning a list that is (optionally) filtered by the `-u` flag.
+        /// - Returns: the list of devices seen on the network, ordered first by USB then Wifi devices.
         func getDeviceInfos() throws -> [DeviceConnectionInfo] {
             let deviceInfos = try DeviceManager.getDeviceListExtended()
 
@@ -63,11 +73,14 @@ struct Busq: ParsableCommand {
                 devInfos.append(deviceInfo)
             }
 
-            return devInfos
+            // sort connected first
+            return devInfos.sorted { i1, i2 in
+                i1.connectionType.rawValue < i2.connectionType.rawValue
+            }
         }
 
         func show(_ results: [String], header: String? = nil) throws {
-            if json {
+            if json || jsonPretty {
                 try print(serializeJSON(results))
             } else {
                 if let header = header {
@@ -80,7 +93,7 @@ struct Busq: ParsableCommand {
         }
 
         func show(_ results: [[String: String]], header: String? = nil, primaryKey: String? = nil) throws {
-            if json {
+            if json || jsonPretty {
                 try print(serializeJSON(results))
             } else {
                 if let header = header {
@@ -99,11 +112,42 @@ struct Busq: ParsableCommand {
             }
         }
 
+        /// Serialize the output to JSON
         func serializeJSON<T: Encodable>(_ value: T) throws -> String {
+            var opts = JSONEncoder.OutputFormatting()
+            opts.insert(.withoutEscapingSlashes)
+            opts.insert(.sortedKeys)
+            if jsonPretty {
+                opts.insert(.prettyPrinted)
+            }
+
             let encoder = JSONEncoder()
+            encoder.outputFormatting = opts
+            encoder.dataEncodingStrategy = .base64
+            encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(value)
             return String(data: data, encoding: .utf8) ?? ""
         }
+
+        /// Creates a `FileConduit` and runs the given block with each of the arguments
+        func runFileCommand<T>(_ args: [String], firstDeviceOnly: Bool = true, block: (FileConduit, String) throws -> T) throws -> [T] {
+            var results: [T] = []
+            for deviceInfo in try self.getDeviceInfos() {
+                let device = try deviceInfo.createDevice()
+                let client = try device.createLockdownClient()
+                let conduit = try client.createFileConduit(escrow: escrow)
+                for arg in args {
+                    let result = try block(conduit, arg)
+                    results.append(result)
+                }
+                if firstDeviceOnly {
+                    break // only connect to the first device
+                }
+            }
+
+            return results
+        }
+
     }
 
     static func format(_ result: Int, usingHex: Bool) -> String {
@@ -112,11 +156,13 @@ struct Busq: ParsableCommand {
     }
 
 
-    struct List: ParsableCommand {
-        static var configuration
-            = CommandConfiguration(abstract: "List available devices.")
+    struct ListDevices: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "list", abstract: "List available devices.")
 
-        @OptionGroup var options: Busq.Options
+        @OptionGroup var options: BusqTool.Options
+
+        @Flag(name: [.long, .customShort("b")], help: "brief output.")
+        var brief = false
 
         @Option(name: [.long, .customShort("p")], help: "device property to display.")
         var property: [String] = [
@@ -145,7 +191,7 @@ struct Busq: ParsableCommand {
                     "UniqueDeviceID": deviceInfo.udid,
                     //"Connection Type": connectionTypeName(deviceInfo.connectionType)
                 ]
-                if options.brief == false {
+                if self.brief == false {
                     let device = try deviceInfo.createDevice()
                     let client = try device.createLockdownClient()
                     for deviceKey in property {
@@ -161,59 +207,215 @@ struct Busq: ParsableCommand {
         }
     }
 
-    struct Ls: ParsableCommand {
-        static var configuration
-            = CommandConfiguration(abstract: "List device files.")
+    /// List the contents of one or more folders in an iOS device.
+    struct ListFolderContents: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "ls", abstract: "List directory contents.")
 
-        @OptionGroup var options: Busq.Options
+        @OptionGroup var options: BusqTool.Options
 
-        @Argument(help: "The folder to query.")
+        @Argument(help: "The folder(s) to query.")
         var folders: [String]
 
         mutating func run() throws {
-            var results: [String] = []
-            for deviceInfo in try options.getDeviceInfos() {
-                let device = try deviceInfo.createDevice()
-                let client = try device.createLockdownClient()
-                let conduit = try client.createFileConduit(escrow: options.escrow)
-                for folder in folders {
-                    let result = try conduit.readDirectory(path: folder)
-                    results.append(contentsOf: result)
-                }
-                break // only connect to the first device
+            let results = try options.runFileCommand(folders) { conduit, arg in
+                try conduit.readDirectory(path: arg)
+                    .filter { path in
+                        path != "." && path != ".." // skip current/parent folder specifiers
+                    }
             }
-
-            try options.show(results)
+            let folderResults = zip(folders, results)
+            if options.json || options.jsonPretty {
+                // output data as base-64 encoded map
+                let dict = Dictionary(folderResults) { $1 }
+                try print(options.serializeJSON(dict))
+            } else {
+                for (folder, contents) in folderResults {
+                    print(folder)
+                    for content in contents {
+                        print(" ", content)
+                    }
+                }
+            }
         }
     }
 
-    struct Cat: ParsableCommand {
-        static var configuration
-            = CommandConfiguration(abstract: "Concatenate and print files.")
+    struct RemoveFolder: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "rmdir", abstract: "Remove folder and contents.")
 
-        @OptionGroup var options: Busq.Options
+        @OptionGroup var options: BusqTool.Options
+
+        @Argument(help: "The folder(s) to delete.")
+        var folders: [String]
+
+        mutating func run() throws {
+            let _ = try options.runFileCommand(folders) { conduit, arg in
+                try conduit.removePathAndContents(path: arg)
+            }
+        }
+    }
+
+    struct CreateFolder: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "mkdir", abstract: "Make directories.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        @Argument(help: "The folder(s) to create.")
+        var folders: [String]
+
+        mutating func run() throws {
+            let _ = try options.runFileCommand(folders) { conduit, arg in
+                try conduit.makeDirectory(path: arg)
+            }
+        }
+    }
+
+    struct TransmitFile: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "transmit", abstract: "Copy file(s) to device.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        @Flag(name: [.long, .customShort("f")], help: "Overwrite existing file(s).")
+        var overwrite = false
+
+        @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
+        var progress = false
+
+        @Option(name: [.long, .customShort("d")], help: "the destination folder on the device.")
+        var directory: String
+
+        @Argument(help: "The file(s) to upload to the device.")
+        var files: [String]
+
+        mutating func run() throws {
+            let _ = try options.runFileCommand(files) { conduit, arg in
+                let url = URL(fileURLWithPath: arg)
+                let remotePath = directory + "/" + url.lastPathComponent
+                if overwrite == false {
+                    let destinationFileExists: Bool
+                    do {
+                        // attempt to open and close the file; if it exists, and we do not want to overwrite, the fail if it was successful
+                        try conduit.fileClose(handle: conduit.fileOpen(filename: remotePath, fileMode: .rdOnly))
+                        destinationFileExists = true
+                    } catch {
+                        // expected that it should fail if there is no such file
+                        destinationFileExists = false
+                    }
+                    if destinationFileExists {
+                        throw CocoaError(.fileWriteFileExists) // cannot overwrite
+                    }
+                }
+
+                if progress {
+                    print("Sending:", url.path, "to:", remotePath) // , "on:", try conduit.getDeviceInfo())
+                }
+
+                let handle = try conduit.fileOpen(filename: remotePath, fileMode: .wrOnly)
+                defer { try? conduit.fileClose(handle: handle) }
+                let progressBar = self.progress ? ProgressBar(output: FileHandle.standardError) : nil
+                let info = url.lastPathComponent
+                try conduit.fileWrite(handle: handle, fileURL: url) { p in
+                    progressBar?.displayProgress(count: Int(p * 1000), total: 1000, info: info)
+                }
+                if self.progress {
+                    print("") // finish progress view
+                }
+            }
+        }
+    }
+
+    struct ReceiveFile: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "receive", abstract: "Copy file(s) from device.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        @Flag(name: [.long, .customShort("f")], help: "Overwrite existing file(s).")
+        var overwrite = false
+
+        @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
+        var progress = false
+
+        @Option(name: [.long, .customShort("d")], help: "the local directory to store file(s).")
+        var directory: String = "."
+
+        @Argument(help: "The file(s) to download from the device.")
+        var files: [String]
+
+        mutating func run() throws {
+            let _ = try options.runFileCommand(files) { conduit, arg in
+                let argPath = URL(fileURLWithPath: arg)
+                let localPath = URL(fileURLWithPath: argPath.lastPathComponent, isDirectory: false, relativeTo: URL(fileURLWithPath: directory, isDirectory: true))
+
+                if overwrite == false {
+                    if FileManager.default.fileExists(atPath: localPath.path) {
+                        throw CocoaError(.fileWriteFileExists) // cannot overwrite
+                    }
+                }
+
+                if progress {
+                    print("Receiving:", localPath.path, "from:", arg)
+                }
+
+                let handle = try conduit.fileOpen(filename: arg, fileMode: .rdOnly)
+                defer { try? conduit.fileClose(handle: handle) }
+
+                // TODO: support streaming to file handle and progress
+//                let progressBar = self.progress ? ProgressBar(output: FileHandle.standardError) : nil
+//                let info = argPath.lastPathComponent
+//                try conduit.fileRead(handle: handle) { p in
+//                    progressBar?.displayProgress(count: Int(p * 1000), total: 1000, info: info)
+//                }
+//                if self.progress {
+//                    print("") // finish progress view
+//                }
+
+                let data = try conduit.fileRead(handle: handle)
+                try data.write(to: localPath)
+            }
+        }
+    }
+
+
+    struct RemoveFile: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "rm", abstract: "Remove directory entries.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        @Argument(help: "The file(s) to delete.")
+        var folders: [String]
+
+        mutating func run() throws {
+            let _ = try options.runFileCommand(folders) { conduit, arg in
+                try conduit.removePathAndContents(path: arg)
+            }
+        }
+    }
+
+    struct Concatinate: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "cat", abstract: "Concatenate and print files.")
+
+        @OptionGroup var options: BusqTool.Options
 
         @Argument(help: "The files to print.")
         var files: [String]
 
         mutating func run() throws {
-            //var results: [String] = []
-            for deviceInfo in try options.getDeviceInfos() {
-                let device = try deviceInfo.createDevice()
-                let client = try device.createLockdownClient()
-                let conduit = try client.createFileConduit(escrow: options.escrow)
-                for file in files {
-
-                    let handle = try conduit.fileOpen(filename: file, fileMode: .rdOnly)
-                    let data = try conduit.fileRead(handle: handle)
-                    try conduit.fileClose(handle: handle)
-
-                    print(String(data: data, encoding: .utf8) ?? "")
-                }
-                break // only connect to the first device
+            let datas: [Data] = try options.runFileCommand(files) { conduit, file in
+                let handle = try conduit.fileOpen(filename: file, fileMode: .rdOnly)
+                defer { try? conduit.fileClose(handle: handle) }
+                let data = try conduit.fileRead(handle: handle)
+                return data
             }
 
-            //try options.show(results)
+            if options.json || options.jsonPretty {
+                // output data as base-64 encoded map
+                let dict = Dictionary(zip(files, datas)) { $1 }
+                try print(options.serializeJSON(dict))
+            } else {
+                for data in datas {
+                    // write the raw data to the terminal
+                    try FileHandle.standardOutput.write(contentsOf: data)
+                }
+            }
         }
     }
 
@@ -227,10 +429,6 @@ struct Busq: ParsableCommand {
             return plist.real?.description
         case .string:
             return plist.string?.description
-        case .array:
-            return "array"
-        case .dict:
-            return "dictionary"
         case .date:
             return plist.date?.description
         case .data:
@@ -239,8 +437,69 @@ struct Busq: ParsableCommand {
             return plist.key
         case .uid:
             return plist.uid?.description
+        case .array:
+            return "array"
+        case .dict:
+            return "dictionary"
         case .none:
             return "none"
         }
+    }
+}
+
+protocol OutputBuffer {
+    func write(_ text: String)
+    func clearLine()
+}
+
+class StringBuffer: OutputBuffer {
+    private(set) var string: String = ""
+
+    func write(_ text: String) {
+        string.append(text)
+    }
+
+    func clearLine() {
+        string = ""
+    }
+}
+
+extension FileHandle: OutputBuffer {
+    func write(_ text: String) {
+        guard let data = text.data(using: .utf8) else { return }
+        write(data)
+    }
+
+    func clearLine() {
+        write("\r")
+    }
+}
+
+public struct ProgressBar {
+    private var output: OutputBuffer
+    public let terminalWidth: Int = 60 // TODO: auto-detect?
+    let barChar = "🁢"
+    let tickChar = "-"
+
+    init(output: OutputBuffer) {
+        self.output = output
+        self.output.write("")
+    }
+
+    /// Renders the given progress amount with the specified info
+    /// - Parameters:
+    ///   - count: the current count
+    ///   - total: the total count
+    ///   - info: additional info to display
+    func displayProgress(count: Int, total: Int, info: String? = nil) {
+        let progress = Float(count) / Float(total)
+        let numberOfBars = Int(floor(progress * Float(terminalWidth)))
+        let numberOfTicks = terminalWidth - numberOfBars
+        let bars = String(repeating: barChar, count: numberOfBars)
+        let ticks = String(repeating: tickChar, count: numberOfTicks)
+
+        let percentage = Int(floor(progress * 100))
+        output.clearLine()
+        output.write("[\(bars)\(ticks)] \(percentage)% \(info ?? "")")
     }
 }

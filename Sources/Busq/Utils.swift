@@ -22,6 +22,9 @@ extension FileManager {
     ///   - teamID: the team identifier for signing
     ///   - recompress: whether to re-zip the files after signing or just return the extracted URL
     /// - Returns: the resulting signed artifact
+    ///
+    /// - Note: only implemented on macOS, since it forks `/usr/bin/zip` and `/usr/bin/codesign`;
+    /// all other platforms currently throw `CocoaError(.featureUnsupported)`
     public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) async throws -> URL {
         #if !os(macOS)
         throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
