@@ -22,13 +22,14 @@ import ArgumentParser
         abstract: "A utility for interfacing with iOS devices.",
         subcommands: [
             ListDevices.self,
-            ListFolderContents.self,
+            ListFolder.self,
             Concatinate.self,
             RemoveFile.self,
             RemoveFolder.self,
             CreateFolder.self,
             TransmitFile.self,
             ReceiveFile.self,
+            InstallApp.self,
         ])
 
     struct Options: ParsableArguments {
@@ -208,7 +209,7 @@ import ArgumentParser
     }
 
     /// List the contents of one or more folders in an iOS device.
-    struct ListFolderContents: ParsableCommand {
+    struct ListFolder: ParsableCommand {
         static var configuration = CommandConfiguration(commandName: "ls", abstract: "List directory contents.")
 
         @OptionGroup var options: BusqTool.Options
@@ -280,6 +281,10 @@ import ArgumentParser
         @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
         var progress = false
 
+        // TODO
+        //@Flag(name: [.long, .customShort("r")], help: "Copy subfolders recursively.")
+        //var recursive = false
+
         @Option(name: [.long, .customShort("d")], help: "the destination folder on the device.")
         var directory: String
 
@@ -306,7 +311,7 @@ import ArgumentParser
                 }
 
                 if progress {
-                    print("Sending:", url.path, "to:", remotePath) // , "on:", try conduit.getDeviceInfo())
+                    //print("Sending:", url.path, "to:", remotePath) // , "on:", try conduit.getDeviceInfo())
                 }
 
                 let handle = try conduit.fileOpen(filename: remotePath, fileMode: .wrOnly)
@@ -333,6 +338,10 @@ import ArgumentParser
 
         @Flag(name: [.long, .customShort("p")], help: "Show file transfer progress.")
         var progress = false
+
+        // TODO
+        //@Flag(name: [.long, .customShort("r")], help: "Copy subfolders recursively.")
+        //var recursive = false
 
         @Option(name: [.long, .customShort("d")], help: "the local directory to store file(s).")
         var directory: String = "."
@@ -419,6 +428,41 @@ import ArgumentParser
         }
     }
 
+    struct InstallApp: ParsableCommand {
+        static var configuration = CommandConfiguration(commandName: "install", abstract: "Install app(s) from remote ipa.")
+
+        @OptionGroup var options: BusqTool.Options
+
+        var firstDeviceOnly = true
+
+        @Flag(name: [.long, .customShort("D")], inversion: .prefixedNo, help: "install as developer package.")
+        var developer = true
+
+        @Argument(help: "The ipa file(s) to install.")
+        var ipa: [String]
+
+        mutating func run() throws {
+            var opts: [String : Plist] = [:]
+            if developer {
+                opts["PackageType"] = Plist(string: "Developer")
+            }
+
+            let optsDict = Plist(dictionary: opts)
+            for deviceInfo in try options.getDeviceInfos() {
+                let device = try deviceInfo.createDevice()
+                let client = try device.createLockdownClient()
+                let iproxy = try client.createInstallationProxy(escrow: options.escrow)
+                for arg in ipa {
+                    let _ = try iproxy.install(pkgPath: arg, options: optsDict, callback: nil)
+                }
+                if firstDeviceOnly {
+                    break // only connect to the first device
+                }
+            }
+        }
+    }
+
+
     static func valueDescription(_ plist: Plist) -> String? {
         switch plist.nodeType {
         case .boolean:
@@ -477,7 +521,7 @@ extension FileHandle: OutputBuffer {
 
 public struct ProgressBar {
     private var output: OutputBuffer
-    public let terminalWidth: Int = 60 // TODO: auto-detect?
+    public let progressWidth: Int = 40 // TODO: auto-detect?
     let barChar = "🁢"
     let tickChar = "-"
 
@@ -493,13 +537,27 @@ public struct ProgressBar {
     ///   - info: additional info to display
     func displayProgress(count: Int, total: Int, info: String? = nil) {
         let progress = Float(count) / Float(total)
-        let numberOfBars = Int(floor(progress * Float(terminalWidth)))
-        let numberOfTicks = terminalWidth - numberOfBars
+        let numberOfBars = Int(floor(progress * Float(progressWidth)))
+        let numberOfTicks = progressWidth - numberOfBars
         let bars = String(repeating: barChar, count: numberOfBars)
         let ticks = String(repeating: tickChar, count: numberOfTicks)
 
-        let percentage = Int(floor(progress * 100))
+        var percentage = Int(floor(progress * 100)).description
+        while percentage.count < 3 {
+            percentage = " " + percentage
+        }
+
+        // truncate info to fit in the terminal width
+        var infoPart = Array(info ?? "")
+        while infoPart.count > 35 {
+            infoPart.remove(at: infoPart.count / 2)
+        }
+        if infoPart.count != info?.count {
+            // insert truncation ellipses
+            infoPart.insert(contentsOf: "…", at: infoPart.count / 2)
+        }
+
         output.clearLine()
-        output.write("[\(bars)\(ticks)] \(percentage)% \(info ?? "")")
+        output.write("[\(bars)\(ticks)] \(percentage)% \(String(infoPart))")
     }
 }
