@@ -1192,6 +1192,7 @@ public final class InstallationProxy {
     }
 
     /// List archived applications. This function runs synchronously.
+    @available(*, deprecated, message: "archive functionality removed in iOS 9")
     public func lookupArchives(options: Plist = Plist(dictionary: [:])) throws -> Plist {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1207,6 +1208,7 @@ public final class InstallationProxy {
     }
 
     /// Archive an application on the device. This function tells the device to make an archive of the specified application. This results in the device creating a ZIP archive in the 'ApplicationArchives' directory and uninstalling the application.
+    @available(*, deprecated, message: "archive functionality removed in iOS 9")
     public func archive(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1235,6 +1237,7 @@ public final class InstallationProxy {
     }
 
     /// Restore a previously archived application on the device. This function is the counterpart to `archive`.
+    @available(*, deprecated, message: "archive functionality removed in iOS 9")
     public func restore(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1263,6 +1266,7 @@ public final class InstallationProxy {
     }
 
     /// Removes a previously archived application from the device. This function removes the ZIP archive from the 'ApplicationArchives' directory.
+    @available(*, deprecated, message: "archive functionality removed in iOS 9")
     public func removeArchive(appID: String, options: Plist, callback: ((Plist?, Plist?) -> Void)?) throws -> Disposable {
         guard let rawValue = self.rawValue else {
             throw InstallationProxyError.deallocatedClient
@@ -1367,7 +1371,7 @@ public extension InstallationProxy {
     }
 
     /// Returns the list of archives
-    @available(*, deprecated, message: "seems to always return ERROR: lookup_archives returned -42")
+    @available(*, deprecated, message: "archive functionality removed in iOS 9")
     func getArchivesList() throws -> [InstalledAppInfo] {
         let archivesPlist = try lookupArchives()
         return archivesPlist.array?.map(InstalledAppInfo.init) ?? []
@@ -2384,6 +2388,22 @@ public enum SpringboardError: Int32, Error {
     case deallocatedService = 100
 }
 
+extension SpringboardError : LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidArgument:
+            return NSLocalizedString("Invalid argument", comment: "")
+        case .plistError:
+            return NSLocalizedString("Property list error", comment: "")
+        case .connectionFailed:
+            return NSLocalizedString("Connection failed", comment: "")
+        case .unknown:
+            return NSLocalizedString("Unknown error", comment: "")
+        case .deallocatedService:
+            return NSLocalizedString("Deallocated service", comment: "")
+        }
+    }
+}
 
 // MARK: HouseArrest
 
@@ -2865,8 +2885,8 @@ extension FileConduitError : LocalizedError {
 // MARK: Miscellanea
 
 /// Perform the given action, throwing an error if it is initializable from the result code
-private func attempt<R: RawRepresentable, E: Error>(_ action: R, _ handler: (R.RawValue) -> E?) throws {
-    if let error = handler(action.rawValue) {
+private func attempt<R: RawRepresentable, E: Error>(_ action: @autoclosure () -> R, _ handler: (R.RawValue) -> E?) throws {
+    if let error = handler(action().rawValue) {
         throw error
     }
 }

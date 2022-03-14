@@ -34,7 +34,6 @@ import ArgumentParser
             ReceiveFile.self,
             InstallApp.self,
             UninstallApp.self,
-            ArchiveApp.self,
             ListApps.self,
         ])
 
@@ -491,43 +490,6 @@ import ArgumentParser
                 let iproxy = try client.createInstallationProxy(escrow: options.escrow)
                 for bundleID in bundleIDs {
                     let _ = try iproxy.uninstall(appID: bundleID, options: Plist(dictionary: [:]), callback: nil)
-                }
-                if firstDeviceOnly {
-                    break // only connect to the first device
-                }
-            }
-        }
-    }
-
-    struct ArchiveApp: ParsableCommand {
-        static var configuration = CommandConfiguration(commandName: "archive", abstract: "Archive app(s) on device.")
-
-        @OptionGroup var options: BusqTool.Options
-
-        var firstDeviceOnly = true
-
-        @Flag(name: [.long, .customShort("s")], inversion: .prefixedNo, help: "skip uninstall.")
-        var skipUninstall = false
-
-        @Option(name: [.long, .customShort("a")], help: "archive type.")
-        var archiveType: String = "ApplicationOnly"
-
-        @Argument(help: "The app bundle ID(s) to archive.")
-        var bundleIDs: [String]
-
-        mutating func run() throws {
-            // The client options to use, as PLIST_DICT, or NULL. Valid options include: "SkipUninstall" -> Boolean "ArchiveType" -> "ApplicationOnly"
-            var opts: [String : Plist] = [:]
-            opts["SkipUninstall"] = Plist(bool: skipUninstall)
-            opts["ArchiveType"] = Plist(string: archiveType)
-
-
-            for deviceInfo in try options.getDeviceInfos() {
-                let device = try deviceInfo.createDevice()
-                let client = try device.createLockdownClient()
-                let iproxy = try client.createInstallationProxy(escrow: options.escrow)
-                for bundleID in bundleIDs {
-                    let _ = try iproxy.archive(appID: bundleID, options: Plist(dictionary: opts), callback: nil)
                 }
                 if firstDeviceOnly {
                     break // only connect to the first device
