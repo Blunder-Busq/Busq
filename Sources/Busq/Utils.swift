@@ -190,6 +190,7 @@ extension FileManager {
     }
 }
 
+#if !os(iOS)
 @discardableResult private func run(_ command: String, args: [String]) throws -> String {
     let task = Process()
     task.launchPath = command
@@ -224,3 +225,5 @@ struct TaskFailed : LocalizedError {
         return "The command \"\(command)\" exited with code: \(exitCode): \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
 }
+#endif
+
