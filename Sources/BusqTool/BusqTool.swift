@@ -499,7 +499,17 @@ import ArgumentParser
     }
 
     struct InstallApp: ParsableCommand {
-        static var configuration = CommandConfiguration(commandName: "install", abstract: "Install app(s) from remote ipa.")
+        static var configuration = CommandConfiguration(commandName: "install", abstract: "Install app(s) from ipa file.", discussion: """
+            Installs the specified IPA on the device.
+
+            This will transmit the local file path to the device,
+            first signing it using a developer certificate specified with the
+            --identity and --teamid arguments.
+
+            If the signed IPA is already present on the device,
+            the --skip-transmit flag will install it directly from the remote location
+            specified by the arguments.
+            """)
 
         @OptionGroup var options: BusqTool.Options
 
@@ -516,6 +526,12 @@ import ArgumentParser
 
         @Flag(name: [.long, .customShort("p")], help: "show file transfer progress.")
         var progress = false
+
+        @Option(name: [.long, .customShort("i")], help: "signing identity.")
+        var identity: String = ""
+
+        @Option(name: [.long, .customShort("t")], help: "team ID for signing.")
+        var teamid: String = ""
 
         @Argument(help: "The ipa file(s) to install.")
         var ipa: [String]
@@ -535,18 +551,26 @@ import ArgumentParser
 
                 for arg in ipa {
                     var installPath = arg
+                    var argPath = URL(fileURLWithPath: arg)
+
+                    if !identity.isEmpty {
+                        print("Signing IPA:", arg)
+                        argPath = try FileManager.default.signIPA(argPath, identity: identity, teamID: teamid, recompress: true)
+                    }
+
                     if skipTransmit == false {
                         // first transmit the files to the remote location
-                        let argPath = URL(fileURLWithPath: arg)
                         let dir = "/busq"
-                        try? conduit.makeDirectory(path: dir)
+                        try conduit.makeDirectory(path: dir)
                         installPath = dir + "/" + argPath.lastPathComponent
                         try transmit(argPath, to: installPath, conduit: conduit, progress: progress, overwrite: true)
                     }
 
                     if upgrade {
+                        print("Upgrading app from:", installPath)
                         let _ = try iproxy.upgrade(pkgPath: installPath, options: optsDict, callback: nil)
                     } else {
+                        print("Installing app from:", installPath)
                         let _ = try iproxy.install(pkgPath: installPath, options: optsDict, callback: nil)
                     }
                 }

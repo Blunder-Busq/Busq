@@ -28,21 +28,21 @@ extension FileManager {
     ///
     /// - Note: only implemented on macOS, since it forks `/usr/bin/zip` and `/usr/bin/codesign`;
     /// all other platforms currently throw `CocoaError(.featureUnsupported)`
-    public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) async throws -> URL {
+    public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) throws -> URL {
         #if !os(macOS)
-        throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
+        throw CocoaError(.featureUnsupported)
         #else
         let baseDir = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory()))
 
-        let outputDir = URL(fileURLWithPath: url.lastPathComponent, isDirectory: true, relativeTo: baseDir)
+        let outputDir = URL(fileURLWithPath: url.deletingPathExtension().lastPathComponent, isDirectory: true, relativeTo: baseDir)
         try self.createDirectory(at: outputDir, withIntermediateDirectories: true, attributes: nil)
 
-        print("extracting ipa to:", outputDir.path)
+        //print("extracting ipa to:", outputDir.path)
 
         // extract the file
-        try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/unzip")).execute(withArguments: ["-o", "-q", url.path, "-d", outputDir.path])
+        try run("/usr/bin/unzip", args: ["-o", "-q", url.path, "-d", outputDir.path])
 
-        try await signFolder(outputDir, identity: identity, teamID: teamID)
+        try signFolder(outputDir, identity: identity, teamID: teamID)
 
         if !recompress {
             // just upload the output folder directly
@@ -50,8 +50,8 @@ extension FileManager {
         } else {
             // repackage as an IPA so we can just send a single file
             // surprisingly, this seems to be slower than sending the expanded ipa directly
-            let repackaged = url.deletingPathExtension().appendingPathExtension("signed.ipa")
-            print("re-packaging signed ipa to:", repackaged.path)
+            let repackaged = outputDir.appendingPathExtension("ipa")
+            //print("re-packaging signed ipa to:", repackaged.path)
 
             // zip cannot trim path components unless it is in the current directoy;
             // so we need to create a bogus script and execute that instead
@@ -65,8 +65,8 @@ extension FileManager {
             try script.write(to: zipScript, atomically: true, encoding: .utf8)
             try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
 
-            print("zipScript:", zipScript.path)
-            try await NSUserUnixTask(url: URL(fileURLWithPath: zipScript.path)).execute(withArguments: [])
+            //print("zipScript:", zipScript.path)
+            try run(zipScript.path, args: [])
             return repackaged
         }
         #endif
@@ -81,9 +81,9 @@ extension FileManager {
     ///   - keychain: the keychain name to use (optional)
     ///   - verify: whether to verify the code signatures after signing
     ///   - overwrite: whether to overrite any signature that may exist; otherwise, an error will occur if the code is already signed
-    func signFolder(_ outputDir: URL, identity: String, teamID: String, keychain: String? = nil, verify: Bool = true, overwrite: Bool = true) async throws {
+    func signFolder(_ outputDir: URL, identity: String, teamID: String, keychain: String? = nil, verify: Bool = true, overwrite: Bool = true) throws {
         #if !os(macOS)
-        throw CocoaError(.featureUnsupported) // no NSUserUnixTask on other platforms
+        throw CocoaError(.featureUnsupported)
         #else
         // get the "Payload" subfolder
         guard let pathEnumerator = self.enumerator(at: outputDir, includingPropertiesForKeys: nil, options: .skipsHiddenFiles, errorHandler: { url, error in
@@ -144,7 +144,7 @@ extension FileManager {
         for signPath in signPaths.reversed() {
 
             // sign the code
-            print("signing:", signPath.path)
+            //print("signing:", signPath.path)
 
             var args = [
                 "--sign", identity,
@@ -171,7 +171,7 @@ extension FileManager {
 
             args += [signPath.path]
 
-            try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: args)
+            try run("/usr/bin/codesign", args: args)
         }
 
         if verify {
@@ -183,13 +183,44 @@ extension FileManager {
 
                 verifyArgs += [signPath.path]
 
-                try await NSUserUnixTask(url: URL(fileURLWithPath: "/usr/bin/codesign")).execute(withArguments: verifyArgs)
+                try run("/usr/bin/codesign", args: verifyArgs)
             }
         }
         #endif
     }
-
 }
 
+@discardableResult private func run(_ command: String, args: [String]) throws -> String {
+    let task = Process()
+    task.launchPath = command
+    task.arguments = args
 
+    let pipe = Pipe()
+    task.standardOutput = pipe
+    task.standardError = pipe
 
+    task.launch()
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+
+    task.waitUntilExit()
+
+    let exitCode = task.terminationStatus
+
+    let output = String(data: data, encoding: .utf8) ?? ""
+
+    if exitCode != 0 {
+        throw TaskFailed(command: command, exitCode: exitCode, output: output)
+    }
+    return output
+}
+
+struct TaskFailed : LocalizedError {
+    let command: String
+    let exitCode: Int32
+    let output: String
+
+    public var errorDescription: String? {
+        return "The command \"\(command)\" exited with code: \(exitCode): \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
+    }
+}

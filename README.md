@@ -23,6 +23,8 @@ swift test
 ### Command Line Tool
 
 The Busq library also includes a command-line interface (CLI).
+The tool is currently only tested on macOS.
+For Windows and Linux, please file an [issue](https://github.com/Blunder-Busq/Busq/issues) if there are problems.
 
 ```
 % swift run busq
@@ -54,6 +56,7 @@ Devices can be listed with the `list` command:
 
 ```
 % swift run busq list
+
 Device list:
 UniqueDeviceID: 00098030-00122956FA63832E
    BuildVersion: 19D52
@@ -88,16 +91,13 @@ can be side-loaded using the `install` command:
 
 ```
 % swift run busq install --progress Cloud-Cuckoo-iOS.signed.ipa
-[🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢] 100% Cloud-Cuckoo-iOS.signed.ipa
+
+[🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢🁢------------------------]  41% Cloud-Cuckoo-iOS.signed.ipa
 ```
 
-Individual files on the device can be explicitly managed using the
+Individual files on the device can also be explicitly managed using the
 `ls`, `mkdir`, `transmit`, and `receive` commands.
 See the `--help` output for each of these commands for more details.
-
-
-
-
 
 ### SPM
 
