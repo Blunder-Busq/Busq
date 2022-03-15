@@ -850,7 +850,7 @@ extension LockdownError : LocalizedError {
         case .receiveTimeout:
             return NSLocalizedString("Receive Timeout", comment: "")
         case .muxError:
-            return NSLocalizedString("Multiplexing Error", comment: "")
+            return NSLocalizedString("Connection broken", comment: "")
         case .noRunningSession:
             return NSLocalizedString("No Running Session", comment: "")
         case .invalidResponse:
@@ -2505,7 +2505,7 @@ public final class FileConduit {
 
         try attempt(afc_client_start_service(device, &pclient, label), FileConduitError.init)
         guard let pointer = pclient else {
-            throw FileConduitError.AFC_E_UNKNOWN_ERROR
+            throw FileConduitError.unknownError
         }
         let client = FileConduit(rawValue: pointer)
         let result = try body(client)
@@ -2788,95 +2788,94 @@ public enum FileConduitLockOp: UInt32 {
 
 
 public enum FileConduitError: Int32, Error {
-    // case AFC_E_SUCCESS               =  0 // not an error
-    case AFC_E_UNKNOWN_ERROR         =  1
-    case AFC_E_OP_HEADER_INVALID     =  2
-    case AFC_E_NO_RESOURCES          =  3
-    case AFC_E_READ_ERROR            =  4
-    case AFC_E_WRITE_ERROR           =  5
-    case AFC_E_UNKNOWN_PACKET_TYPE   =  6
-    case AFC_E_INVALID_ARG           =  7
-    case AFC_E_OBJECT_NOT_FOUND      =  8
-    case AFC_E_OBJECT_IS_DIR         =  9
-    case AFC_E_PERM_DENIED           = 10
-    case AFC_E_SERVICE_NOT_CONNECTED = 11
-    case AFC_E_OP_TIMEOUT            = 12
-    case AFC_E_TOO_MUCH_DATA         = 13
-    case AFC_E_END_OF_DATA           = 14
-    case AFC_E_OP_NOT_SUPPORTED      = 15
-    case AFC_E_OBJECT_EXISTS         = 16
-    case AFC_E_OBJECT_BUSY           = 17
-    case AFC_E_NO_SPACE_LEFT         = 18
-    case AFC_E_OP_WOULD_BLOCK        = 19
-    case AFC_E_IO_ERROR              = 20
-    case AFC_E_OP_INTERRUPTED        = 21
-    case AFC_E_OP_IN_PROGRESS        = 22
-    case AFC_E_INTERNAL_ERROR        = 23
-    case AFC_E_MUX_ERROR             = 30
-    case AFC_E_NO_MEM                = 31
-    case AFC_E_NOT_ENOUGH_DATA       = 32
-    case AFC_E_DIR_NOT_EMPTY         = 33
-    case AFC_E_FORCE_SIGNED_TYPE     = -1
+    case unknownError =  1
+    case headerInvalid =  2
+    case noResources =  3
+    case readError =  4
+    case writeError = 5
+    case unknownPacketType =  6
+    case invalidArgument =  7
+    case objectNotFound =  8
+    case objectIsDirectory =  9
+    case permissionDenied = 10
+    case serviceNotConnected = 11
+    case operationTimeout = 12
+    case tooMuchData = 13
+    case endOfData = 14
+    case operationNotSupported = 15
+    case objectExists = 16
+    case objectBusy = 17
+    case noSaceLeft = 18
+    case operationWouldBlock = 19
+    case ioError = 20
+    case operationInterrupted = 21
+    case operatonInProgress = 22
+    case internalError = 23
+    case muxError = 30
+    case noMemory = 31
+    case notEnoughData = 32
+    case directoryNotEmpty = 33
+    case forceSignedType = -1
 }
 
 extension FileConduitError : LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .AFC_E_UNKNOWN_ERROR:
+        case .unknownError:
             return NSLocalizedString("Unknown error", comment: "")
-        case .AFC_E_OP_HEADER_INVALID:
+        case .headerInvalid:
             return NSLocalizedString("Header invalid", comment: "")
-        case .AFC_E_NO_RESOURCES:
+        case .noResources:
             return NSLocalizedString("No resources", comment: "")
-        case .AFC_E_READ_ERROR:
+        case .readError:
             return NSLocalizedString("Read error", comment: "")
-        case .AFC_E_WRITE_ERROR:
+        case .writeError:
             return NSLocalizedString("Write error", comment: "")
-        case .AFC_E_UNKNOWN_PACKET_TYPE:
+        case .unknownPacketType:
             return NSLocalizedString("Unknown packet type", comment: "")
-        case .AFC_E_INVALID_ARG:
+        case .invalidArgument:
             return NSLocalizedString("Invalid argument", comment: "")
-        case .AFC_E_OBJECT_NOT_FOUND:
+        case .objectNotFound:
             return NSLocalizedString("Object not found", comment: "")
-        case .AFC_E_OBJECT_IS_DIR:
+        case .objectIsDirectory:
             return NSLocalizedString("Object is a directory", comment: "")
-        case .AFC_E_PERM_DENIED:
+        case .permissionDenied:
             return NSLocalizedString("Permission denied", comment: "")
-        case .AFC_E_SERVICE_NOT_CONNECTED:
+        case .serviceNotConnected:
             return NSLocalizedString("Service not connected", comment: "")
-        case .AFC_E_OP_TIMEOUT:
+        case .operationTimeout:
             return NSLocalizedString("Timeout", comment: "")
-        case .AFC_E_TOO_MUCH_DATA:
+        case .tooMuchData:
             return NSLocalizedString("Too much data", comment: "")
-        case .AFC_E_END_OF_DATA:
+        case .endOfData:
             return NSLocalizedString("End of data", comment: "")
-        case .AFC_E_OP_NOT_SUPPORTED:
+        case .operationNotSupported:
             return NSLocalizedString("Not supported", comment: "")
-        case .AFC_E_OBJECT_EXISTS:
+        case .objectExists:
             return NSLocalizedString("Object exists", comment: "")
-        case .AFC_E_OBJECT_BUSY:
+        case .objectBusy:
             return NSLocalizedString("Object busy", comment: "")
-        case .AFC_E_NO_SPACE_LEFT:
+        case .noSaceLeft:
             return NSLocalizedString("No space left", comment: "")
-        case .AFC_E_OP_WOULD_BLOCK:
+        case .operationWouldBlock:
             return NSLocalizedString("Operation would block", comment: "")
-        case .AFC_E_IO_ERROR:
+        case .ioError:
             return NSLocalizedString("I/O error", comment: "")
-        case .AFC_E_OP_INTERRUPTED:
+        case .operationInterrupted:
             return NSLocalizedString("Operation interrupted", comment: "")
-        case .AFC_E_OP_IN_PROGRESS:
+        case .operatonInProgress:
             return NSLocalizedString("Operation in progress", comment: "")
-        case .AFC_E_INTERNAL_ERROR:
+        case .internalError:
             return NSLocalizedString("Internal error", comment: "")
-        case .AFC_E_MUX_ERROR:
-            return NSLocalizedString("Multiplexing error", comment: "")
-        case .AFC_E_NO_MEM:
+        case .muxError:
+            return NSLocalizedString("Connection broken", comment: "")
+        case .noMemory:
             return NSLocalizedString("No memory", comment: "")
-        case .AFC_E_NOT_ENOUGH_DATA:
+        case .notEnoughData:
             return NSLocalizedString("Not enough data", comment: "")
-        case .AFC_E_DIR_NOT_EMPTY:
+        case .directoryNotEmpty:
             return NSLocalizedString("Directory not empty", comment: "")
-        case .AFC_E_FORCE_SIGNED_TYPE:
+        case .forceSignedType:
             return NSLocalizedString("Trickery to force signed type inferrence", comment: "")
         }
     }
