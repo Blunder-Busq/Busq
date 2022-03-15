@@ -40,8 +40,10 @@ extension FileManager {
         //print("extracting ipa to:", outputDir.path)
 
         // extract the file
+
         try run("/usr/bin/unzip", args: ["-o", "-q", url.path, "-d", outputDir.path])
 
+        print("unzipped to", outputDir.path)
         try signFolder(outputDir, identity: identity, teamID: teamID)
 
         if !recompress {
@@ -66,7 +68,7 @@ extension FileManager {
             try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
 
             //print("zipScript:", zipScript.path)
-            try run(zipScript.path, args: [])
+            try run("/bin/sh", args: [zipScript.path])
             return repackaged
         }
         #endif
@@ -192,6 +194,34 @@ extension FileManager {
 
 #if !os(iOS)
 @discardableResult private func run(_ command: String, args: [String]) throws -> String {
+    #if os(macOS)
+    // a sandboxed app is not permitted to use Process(), but it can execute scripts via NSAppleScript
+    let cmd = command + " " + args.map({ arg in
+        arg.contains(" ") ? "\\\"\(arg)\\\"" : arg })
+        .joined(separator: " ")
+    //print("executing:", cmd)
+    let task = NSAppleScript(source: "do shell script \"\(cmd)\"")
+    var error: NSDictionary? = nil
+    let desc = task?.executeAndReturnError(&error)
+    if let error = error {
+        // e.g.:
+        // NSAppleScriptErrorBriefMessage = "A identifier can\U2019t go after this identifier.";
+        // NSAppleScriptErrorMessage = "A identifier can\U2019t go after this identifier.";
+        // NSAppleScriptErrorNumber = "-2740";
+        // NSAppleScriptErrorRange = "NSRange: {0, 8}";
+
+        let message = error["NSAppleScriptErrorBriefMessage"] as? String
+            ?? error["NSAppleScriptErrorMessage"] as? String
+            ?? NSLocalizedString("An unknown error occured", comment: "")
+
+        struct ExecutionError : LocalizedError {
+            var failureReason: String?
+        }
+        throw ExecutionError(failureReason: message)
+    }
+    //print("executed and returned:", desc?.stringValue ?? "null")
+    return desc?.stringValue ?? ""
+    #else
     let task = Process()
     task.launchPath = command
     task.arguments = args
@@ -211,19 +241,21 @@ extension FileManager {
     let output = String(data: data, encoding: .utf8) ?? ""
 
     if exitCode != 0 {
+        struct TaskFailed : LocalizedError {
+            let command: String
+            let exitCode: Int32
+            let output: String
+
+            public var errorDescription: String? {
+                return "The command \"\(command)\" exited with code: \(exitCode): \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
+            }
+        }
+
         throw TaskFailed(command: command, exitCode: exitCode, output: output)
     }
     return output
+    #endif
 }
 
-struct TaskFailed : LocalizedError {
-    let command: String
-    let exitCode: Int32
-    let output: String
-
-    public var errorDescription: String? {
-        return "The command \"\(command)\" exited with code: \(exitCode): \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
-    }
-}
 #endif
 
