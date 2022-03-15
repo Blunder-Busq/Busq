@@ -28,11 +28,7 @@ var package = Package(
         .executable(name: "busq", targets: ["BusqTool"]),
     ],
     dependencies: [
-        .package(
-          name: "swift-argument-parser",
-          url: "https://github.com/apple/swift-argument-parser",
-          .upToNextMinor(from: "1.0.3")
-        ),
+        .package(name: "swift-argument-parser", url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.0.0")),
     ],
     targets: [
         .target(
