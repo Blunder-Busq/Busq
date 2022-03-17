@@ -84,9 +84,9 @@ class BusqTests: XCTestCase {
             let now = { Date().timeIntervalSinceReferenceDate }
 
             let signStart = now()
-            let signedIPA = try await FileManager.default.signIPA(sourceURL, identity: identity, teamID: teamID, recompress: recompress)
+            let signedIPA = try FileManager.default.prepareIPA(sourceURL, identity: identity, teamID: teamID, recompress: recompress)
             let signEnd = now()
-            print("signIPA time:", signEnd - signStart) // recompress=true: 17.81 recompress=false: 12.56
+            print("prepareIPA time:", signEnd - signStart) // recompress=true: 17.81 recompress=false: 12.56
 
             let installStart = now()
             try await lfc.installApp(from: signedIPA)

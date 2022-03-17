@@ -104,6 +104,7 @@ typedef enum {
 	INSTPROXY_E_INSTALL_PROHIBITED                                        = -62,
 	INSTPROXY_E_UNINSTALL_PROHIBITED                                      = -63,
 	INSTPROXY_E_MISSING_BUNDLE_VERSION                                    = -64,
+    INSTPROXY_E_MISMATCHED_APPLICATION_IDENTIFIER_ENTITLEMENT             = -65,
 	INSTPROXY_E_UNKNOWN_ERROR                                             = -256
 } instproxy_error_t;
 

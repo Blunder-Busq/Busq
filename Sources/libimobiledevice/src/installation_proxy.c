@@ -177,10 +177,13 @@ static instproxy_error_t instproxy_strtoerr(const char* name)
 		err = INSTPROXY_E_INSTALL_PROHIBITED;
 	} else if (strcmp(name, "UninstallProhibited") == 0) {
 		err = INSTPROXY_E_UNINSTALL_PROHIBITED;
-	} else if (strcmp(name, "MissingBundleVersion") == 0) {
-		err = INSTPROXY_E_MISSING_BUNDLE_VERSION;
+    } else if (strcmp(name, "MissingBundleVersion") == 0) {
+        err = INSTPROXY_E_MISSING_BUNDLE_VERSION;
+    } else if (strcmp(name, "MismatchedApplicationIdentifierEntitlement") == 0) {
+        err = INSTPROXY_E_MISMATCHED_APPLICATION_IDENTIFIER_ENTITLEMENT;
 	}
 
+    printf("### instproxy_strtoerr: install error name: %s\n", name); // for debugging names that are not yet identified
 	return err;
 }
 

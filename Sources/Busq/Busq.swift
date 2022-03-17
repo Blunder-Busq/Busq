@@ -1124,6 +1124,7 @@ public final class InstallationProxy {
             let callback = wrapper.takeUnretainedValue().value
             callback(Plist(nillableValue: command), Plist(nillableValue: status))
         }, userData?.toOpaque())
+
         if let error = InstallationProxyError(rawValue: rawError.rawValue) {
             userData?.release()
             throw error
@@ -1462,6 +1463,7 @@ public enum InstallationProxyError: Int32, Error {
     case installProhibited = -62
     case uninstallProhibited = -63
     case missingBundleVersion = -64
+    case mismatchedApplicationIdentifierEntitlement = -65
     case unknown = -256
 
     case deallocatedClient = 100
@@ -1598,6 +1600,8 @@ extension InstallationProxyError : LocalizedError {
             return NSLocalizedString("Uninstall prohibited", comment: "")
         case .missingBundleVersion:
             return NSLocalizedString("Missing bundle version", comment: "")
+        case .mismatchedApplicationIdentifierEntitlement:
+            return NSLocalizedString("The application identifier to be installed does not match the identifier for the installed app", comment: "")
         case .unknown:
             return NSLocalizedString("Unknown error", comment: "")
         case .deallocatedClient:
@@ -2884,10 +2888,19 @@ extension FileConduitError : LocalizedError {
 // MARK: Miscellanea
 
 /// Perform the given action, throwing an error if it is initializable from the result code
-private func attempt<R: RawRepresentable, E: Error>(_ action: @autoclosure () -> R, _ handler: (R.RawValue) -> E?) throws {
-    if let error = handler(action().rawValue) {
+private func attempt<R: RawRepresentable, E: Error>(_ action: @autoclosure () -> R, _ handler: (R.RawValue) -> E?) throws where R.RawValue == Int32 {
+    let result = action().rawValue
+    if let error = handler(result) {
         throw error
     }
+    if result != 0 {
+        throw UnknownError(result: result)
+    }
+}
+
+/// An error code whose purpose is unknown
+struct UnknownError : Error {
+    let result: Int32
 }
 
 class Wrapper<T> {

@@ -28,7 +28,7 @@ extension FileManager {
     ///
     /// - Note: only implemented on macOS, since it forks `/usr/bin/zip` and `/usr/bin/codesign`;
     /// all other platforms currently throw `CocoaError(.featureUnsupported)`
-    public func signIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) throws -> URL {
+    public func prepareIPA(_ url: URL, identity: String, teamID: String, recompress: Bool) throws -> URL {
         #if !os(macOS)
         throw CocoaError(.featureUnsupported)
         #else
@@ -41,7 +41,7 @@ extension FileManager {
 
         // extract the file
 
-        try run("/usr/bin/unzip", args: ["-o", "-q", url.path, "-d", outputDir.path])
+        try shell("/usr/bin/unzip", args: ["-o", "-q", url.path, "-d", outputDir.path])
 
         print("unzipped to", outputDir.path)
         try signFolder(outputDir, identity: identity, teamID: teamID)
@@ -65,10 +65,13 @@ extension FileManager {
 
             let zipScript = URL(fileURLWithPath: UUID().uuidString, isDirectory: true, relativeTo: URL(fileURLWithPath: NSTemporaryDirectory())).appendingPathExtension("sh")
             try script.write(to: zipScript, atomically: true, encoding: .utf8)
-            try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
+
+            // doesn't work with sandbox
+            // try self.setAttributes([.posixPermissions: NSNumber(value: 0o777)], ofItemAtPath: zipScript.path)
 
             //print("zipScript:", zipScript.path)
-            try run("/bin/sh", args: [zipScript.path])
+            try shell("/bin/sh", args: [zipScript.path])
+            
             return repackaged
         }
         #endif
@@ -98,7 +101,8 @@ extension FileManager {
         // Get the list of framework and app paths to sign, starting from the shallowest to the depeest
         let signPaths = Array(pathEnumerator)
             .compactMap { $0 as? URL }
-            .filter { $0.pathExtension == "app" || $0.pathExtension == "framework" }
+            .filter { $0.pathExtension == "app" || $0.pathExtension == "appex" || $0.pathExtension == "framework" }
+            .filter { $0.relativePath.contains("/__MACOSX/") == false } // some apps embed macOS frameworks; these shouldn't be signed
             .sorted(by: { $0.pathComponents.count < $1.pathComponents.count })
 
         // get the root app path
@@ -156,6 +160,8 @@ extension FileManager {
 
             if signPath.pathExtension == "app" {
                 // args += ["--preserve-metadata=identifier,entitlements,flags"]
+            } else if signPath.pathExtension == "appex" {
+                // app extension
             } else if signPath.pathExtension == "framework" {
             }
 
@@ -173,7 +179,8 @@ extension FileManager {
 
             args += [signPath.path]
 
-            try run("/usr/bin/codesign", args: args)
+            print("signing with arguments:", args)
+            try shell("/usr/bin/codesign", args: args)
         }
 
         if verify {
@@ -185,16 +192,23 @@ extension FileManager {
 
                 verifyArgs += [signPath.path]
 
-                try run("/usr/bin/codesign", args: verifyArgs)
+                try shell("/usr/bin/codesign", args: verifyArgs)
             }
         }
         #endif
     }
 }
 
-#if !os(iOS)
-@discardableResult private func run(_ command: String, args: [String]) throws -> String {
-    #if os(macOS)
+/// Invoke the given command with shell arguments
+/// - Parameters:
+///   - command: the command to execute
+///   - args: the arguments
+/// - Throws: an error
+/// - Returns: the string output, which is the concatination of standard error and standard output
+@discardableResult public func shell(_ command: String, args: [String]) throws -> String {
+    #if os(iOS)
+    throw CocoaError(.featureUnsupported) // no Process or NSAppleScript on iOS
+    #elseif os(macOS)
     // a sandboxed app is not permitted to use Process(), but it can execute scripts via NSAppleScript
     let cmd = command + " " + args.map({ arg in
         arg.contains(" ") ? "\\\"\(arg)\\\"" : arg })
@@ -256,6 +270,3 @@ extension FileManager {
     return output
     #endif
 }
-
-#endif
-

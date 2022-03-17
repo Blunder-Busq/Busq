@@ -555,7 +555,7 @@ import ArgumentParser
 
                     if !identity.isEmpty {
                         print("Signing IPA:", arg)
-                        argPath = try FileManager.default.signIPA(argPath, identity: identity, teamID: teamid, recompress: true)
+                        argPath = try FileManager.default.prepareIPA(argPath, identity: identity, teamID: teamid, recompress: true)
                     }
 
                     if skipTransmit == false {
