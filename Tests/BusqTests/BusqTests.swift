@@ -118,7 +118,7 @@ class BusqTests: XCTestCase {
     func testFileConduit(_ lfc: LockdownClient) throws {
         let client = try lfc.createFileConduit(escrow: false)
 
-        
+
         let info = try client.getDeviceInfo()
         print(" - device info:", info) // AFC_E_MUX_ERROR
         // ["Model": "iPad5,3", "FSTotalBytes": "127993663488", "FSFreeBytes": "117186351104", "FSBlockSize": "4096"]
