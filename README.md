@@ -127,8 +127,8 @@ This software is licensed under the
 GNU Affero General Public License 3.0,
 and embeds the following external projects:
 
- - [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) (GPL-3.0 License)
- - [usbmuxd](https://github.com/libimobiledevice/usbmuxd) (GPL-3.0 License)
+ - [libimobiledevice](https://github.com/libimobiledevice/libimobiledevice) (LGPL-2.1 License)
+ - [libusbmuxd](https://github.com/libimobiledevice/libusbmuxd) (LGPL-2.1 License)
  - [libplist](https://github.com/libimobiledevice/libplist) (LGPL-2.1 License)
  - [mbedtls](https://github.com/ARMmbed/mbedtls) (Apache 2.0 License)
 
