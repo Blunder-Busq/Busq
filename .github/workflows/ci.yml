@@ -10,8 +10,22 @@ on:
     - cron: '0 0,12 * * *'
 
 jobs:
-  ci-macos:
-    runs-on: macos-latest
+  ci-macos-12:
+    runs-on: macos-12
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_13.3.app/Contents/Developer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: swift build -v
+      - name: Run Tests
+        run: swift test -v
+      - name: Run CLI
+        run: swift run busq
+
+  ci-macos-11:
+    runs-on: macos-11
     steps:
       - name: Checkout
         uses: actions/checkout@v2
